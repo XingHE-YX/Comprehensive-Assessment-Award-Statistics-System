@@ -7,7 +7,8 @@ Current status:
 - IMPLEMENTATION_PLAN.md section 0 (开工约束) is complete: the Cargo binary package, prescribed directories, exact direct dependencies, and Cargo.lock are initialized.
 - Rust toolchain is fixed to 1.88.0 through rust-toolchain.toml.
 - The initial project baseline was committed and pushed to `origin/main` at commit `7833487` (`chore: initialize comprehensive assessment system`).
-- Task 1 implementation has not started; src/main.rs is Cargo's default placeholder.
+- Task 1 implementation has not started; routing/config/error/template work remains for a later task.
+- Task 2 is complete: SQLite migrations, domain models, repositories, foreign-key/unique constraints, default academic-year seed, and startup database initialization are implemented.
 
 Completed documents:
 - PRD.md
@@ -19,12 +20,15 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Begin IMPLEMENTATION_PLAN.md Task 1: write failing health/config tests, then replace the default entry point with configuration, shared state, error handling, and the health route.
+- Implement Task 1's HTTP/config/error baseline before starting Task 3 authentication and protected storage.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
 - `cargo +1.88.0 check` passed.
 - `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed.
+- `cargo +1.88.0 test --test db` passed (4 tests).
+- `cargo +1.88.0 test --all-targets` passed.
+- `DATABASE_URL=sqlite::memory: cargo run` passed; migrations and default seed initialized one active year.
 - Cargo.toml direct dependencies were compared with TECH_STACK.md and use exact versions.
 
 Notes:

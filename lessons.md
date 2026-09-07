@@ -9,6 +9,7 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - Category-specific data is stored as JSON for development speed, but every export path must expand it into named Excel columns.
 - Student edit access is credential-based rather than account-based. Hash the edit code and scope the verified session to one internal submission id.
 - The active academic year is a database invariant: activation must close other active years in the same transaction.
+- SQLx's `migrate!` macro requires enabling the `macros` feature when `default-features = false`; `SqlitePoolOptions` is exported from `sqlx::sqlite` in SQLx 0.8.
 
 ## How to add a lesson
 
