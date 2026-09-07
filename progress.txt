@@ -1,0 +1,33 @@
+Project: 综测成果申报系统（单班级版）
+Last updated: 2026-09-07
+
+Current status:
+- Project specification documents have been created.
+- AGENT.md has been created as the project-level AI execution guide.
+- IMPLEMENTATION_PLAN.md section 0 (开工约束) is complete: the Cargo binary package, prescribed directories, exact direct dependencies, and Cargo.lock are initialized.
+- Rust toolchain is fixed to 1.88.0 through rust-toolchain.toml.
+- The directory is a Git repository initialized by `cargo init`; no commits have been created.
+- Task 1 implementation has not started; src/main.rs is Cargo's default placeholder.
+
+Completed documents:
+- PRD.md
+- APP_FLOW.md
+- TECH_STACK.md
+- FRONTEND_GUIDELINES.md
+- BACKEND_STRUCTURE.md
+- IMPLEMENTATION_PLAN.md
+- AGENT.md
+
+Next implementation step:
+- Begin IMPLEMENTATION_PLAN.md Task 1: write failing health/config tests, then replace the default entry point with configuration, shared state, error handling, and the health route.
+
+Verification:
+- `cargo +1.88.0 fmt --check` passed.
+- `cargo +1.88.0 check` passed.
+- `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed.
+- Cargo.toml direct dependencies were compared with TECH_STACK.md and use exact versions.
+
+Notes:
+- Do not add P1/P2 features before P0 acceptance is complete.
+- Keep this file free of credentials, access codes, edit codes, session secrets, and personal data.
+- Empty required directories contain .gitkeep so the project structure survives Git checkout.
