@@ -9,6 +9,7 @@ Current status:
 - The initial project baseline was committed and pushed to `origin/main` at commit `7833487` (`chore: initialize comprehensive assessment system`).
 - Task 1 implementation has not started; routing/config/error/template work remains for a later task.
 - Task 2 is complete: SQLite migrations, domain models, repositories, foreign-key/unique constraints, default academic-year seed, and startup database initialization are implemented.
+- Task 3 is complete: Argon2id secret helpers, random edit/submission identifiers, scoped sessions with expiry, CSRF helpers, secure private cookies, protected attachment storage, path/type/size/count validation, and cleanup on batch failure are implemented.
 
 Completed documents:
 - PRD.md
@@ -20,7 +21,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Implement Task 1's HTTP/config/error baseline before starting Task 3 authentication and protected storage.
+- Implement Task 1's HTTP/config/error baseline before starting Task 4 validation and page work.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -30,6 +31,10 @@ Verification:
 - `cargo +1.88.0 test --all-targets` passed.
 - `DATABASE_URL=sqlite::memory: cargo run` passed; migrations and default seed initialized one active year.
 - Cargo.toml direct dependencies were compared with TECH_STACK.md and use exact versions.
+- `cargo +1.88.0 fmt --check` passed after Task 3 changes.
+- `cargo +1.88.0 test --test auth --test storage` passed (7 tests).
+- `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed after Task 3 changes.
+- `cargo +1.88.0 test --all-targets` passed after Task 3 changes.
 
 Notes:
 - Do not add P1/P2 features before P0 acceptance is complete.

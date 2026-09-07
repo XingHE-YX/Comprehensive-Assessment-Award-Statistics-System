@@ -6,10 +6,12 @@ use sqlx::{
 };
 
 use crate::db::{migrate, seed_default_academic_year};
+use crate::storage::AttachmentStorage;
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: SqlitePool,
+    pub storage: AttachmentStorage,
 }
 
 impl AppState {
@@ -25,6 +27,9 @@ impl AppState {
             .await?;
         migrate(&db).await.map_err(sqlx::Error::protocol)?;
         seed_default_academic_year(&db).await?;
-        Ok(Self { db })
+        Ok(Self {
+            db,
+            storage: AttachmentStorage::new("uploads"),
+        })
     }
 }
