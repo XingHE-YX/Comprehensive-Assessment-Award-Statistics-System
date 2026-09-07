@@ -7,7 +7,13 @@ Current status:
 - IMPLEMENTATION_PLAN.md section 0 (开工约束) is complete: the Cargo binary package, prescribed directories, exact direct dependencies, and Cargo.lock are initialized.
 - Rust toolchain is fixed to 1.88.0 through rust-toolchain.toml.
 - The initial project baseline was committed and pushed to `origin/main` at commit `7833487` (`chore: initialize comprehensive assessment system`).
-- Task 1 implementation has not started; src/main.rs is Cargo's default placeholder.
+- IMPLEMENTATION_PLAN.md Task 1 is complete on branch `codex/task1-scaffold`: the Cargo placeholder now starts the Axum application, validates runtime configuration, initializes tracing and SQLite, applies available migrations, and supports graceful shutdown.
+- `GET /healthz` returns the exact plain-text response `ok`.
+- `AppError` renders Chinese 403, 404, and 500 Askama pages without exposing internal details. Missing static files use the same Chinese 404 response.
+- The shared `AppState` contains the SQLite pool and parsed configuration; session and attachment storage will be added in Task 3 as planned.
+- `MAX_BODY_BYTES` is applied through Axum's default body limit so future form and multipart extractors inherit the configured limit.
+- Added the initial PageShell and error-page CSS using the required design tokens, 16px mobile / 24px desktop padding, 720px student content maximum, visible focus indicators, and a 640px responsive breakpoint.
+- Added `.env.example` and README startup/configuration documentation without real credentials or secrets.
 
 Completed documents:
 - PRD.md
@@ -19,16 +25,20 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Begin IMPLEMENTATION_PLAN.md Task 1: write failing health/config tests, then replace the default entry point with configuration, shared state, error handling, and the health route.
+- Begin IMPLEMENTATION_PLAN.md Task 2: add SQLite migrations, domain models, repositories, and migration integration tests.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
 - `cargo +1.88.0 check` passed.
 - `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed.
 - Cargo.toml direct dependencies were compared with TECH_STACK.md and use exact versions.
+- `cargo +1.88.0 test --test health` passed with five tests covering health, missing configuration, configured body limits, static 404 rendering, and safe internal errors.
+- `cargo +1.88.0 test --all-targets` passed.
+- A temporary process using fixture configuration started successfully; `curl http://127.0.0.1:31001/healthz` returned `ok` before the process was stopped.
 
 Notes:
 - Do not add P1/P2 features before P0 acceptance is complete.
 - Keep this file free of credentials, access codes, edit codes, session secrets, and personal data.
 - Empty required directories contain .gitkeep so the project structure survives Git checkout.
 - The GitHub remote is `https://github.com/XingHE-YX/Comprehensive-Assessment-Award-Statistics-System.git`.
+- Task 1 is isolated in the local worktree branch `codex/task1-scaffold` until its commit is pushed.

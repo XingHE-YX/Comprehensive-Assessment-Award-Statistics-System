@@ -9,6 +9,8 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - Category-specific data is stored as JSON for development speed, but every export path must expand it into named Excel columns.
 - Student edit access is credential-based rather than account-based. Hash the edit code and scope the verified session to one internal submission id.
 - The active academic year is a database invariant: activation must close other active years in the same transaction.
+- The prescribed SQLx feature set enables runtime migrations but not the `sqlx::migrate!` macro. Use `sqlx::migrate::Migrator::new(Path)` so startup migration support does not expand the dependency baseline.
+- When a local smoke-test environment value contains `$`, pass it with `env 'NAME=value' command`; quoting the full `NAME=value` shell assignment makes zsh interpret it as a command name.
 
 ## How to add a lesson
 

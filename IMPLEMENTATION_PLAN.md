@@ -24,10 +24,10 @@
 
 Files: `Cargo.toml`, `src/main.rs`, `src/config.rs`, `src/state.rs`, `src/error.rs`, `templates/layout.html`, `templates/errors/*.html`, `.env.example`, `README.md`, `tests/health.rs`。
 
-- [ ] 写 `GET /healthz` 测试和缺失环境变量测试。
-- [ ] 固定 `TECH_STACK.md` 中的依赖版本，定义 `Config`、`AppState`、`AppError`。
-- [ ] 初始化 tracing、SQLite pool、Askama、路由和 graceful shutdown。
-- [ ] 运行 `cargo test --test health`、`cargo fmt --check`、clippy。
+- [x] 写 `GET /healthz` 测试和缺失环境变量测试。
+- [x] 固定 `TECH_STACK.md` 中的依赖版本，定义 `Config`、`AppState`、`AppError`。
+- [x] 初始化 tracing、SQLite pool、Askama、路由和 graceful shutdown。
+- [x] 运行 `cargo test --test health`、`cargo fmt --check`、clippy。
 
 完成条件：程序可启动，`/healthz` 返回 `ok`，错误页为中文且不泄露内部信息。
 

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>{% block title %}综测成果申报系统{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="page-container header-content">
+        <a class="site-brand" href="/">综测成果申报系统</a>
+      </div>
+    </header>
+    <main id="main-content" class="page-main">
+      <div class="page-container student-content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+    <footer class="page-footer">
+      <div class="page-container">综测成果申报系统</div>
+    </footer>
+  </body>
+</html>
