@@ -6,7 +6,7 @@ Current status:
 - AGENT.md has been created as the project-level AI execution guide.
 - IMPLEMENTATION_PLAN.md section 0 (开工约束) is complete: the Cargo binary package, prescribed directories, exact direct dependencies, and Cargo.lock are initialized.
 - Rust toolchain is fixed to 1.88.0 through rust-toolchain.toml.
-- The directory is a Git repository initialized by `cargo init`; no commits have been created.
+- The initial project baseline was committed and pushed to `origin/main` at commit `7833487` (`chore: initialize comprehensive assessment system`).
 - Task 1 implementation has not started; src/main.rs is Cargo's default placeholder.
 
 Completed documents:
@@ -31,3 +31,4 @@ Notes:
 - Do not add P1/P2 features before P0 acceptance is complete.
 - Keep this file free of credentials, access codes, edit codes, session secrets, and personal data.
 - Empty required directories contain .gitkeep so the project structure survives Git checkout.
+- The GitHub remote is `https://github.com/XingHE-YX/Comprehensive-Assessment-Award-Statistics-System.git`.
