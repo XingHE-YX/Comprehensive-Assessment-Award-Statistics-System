@@ -1,5 +1,5 @@
 Project: 综测成果申报系统（单班级版）
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 Current status:
 - Project specification documents have been created.
@@ -10,6 +10,8 @@ Current status:
 - Task 1 implementation has not started; routing/config/error/template work remains for a later task.
 - Task 2 is complete: SQLite migrations, domain models, repositories, foreign-key/unique constraints, default academic-year seed, and startup database initialization are implemented.
 - Task 3 is complete: Argon2id secret helpers, random edit/submission identifiers, scoped sessions with expiry, CSRF helpers, secure private cookies, protected attachment storage, path/type/size/count validation, and cleanup on batch failure are implemented.
+- Task 4 is complete: the seven category schemas, shared submission/declaration/score/deadline validation, attachment validation integration, category JSON keys, and validation tests are implemented.
+- The student home and submission templates, responsive CSS, and native category-aware submission form script are scaffolded for Task 5; HTTP routes and submission persistence remain to be implemented.
 
 Completed documents:
 - PRD.md
@@ -35,6 +37,9 @@ Verification:
 - `cargo +1.88.0 test --test auth --test storage` passed (7 tests).
 - `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed after Task 3 changes.
 - `cargo +1.88.0 test --all-targets` passed after Task 3 changes.
+- `cargo +1.88.0 test --all-targets` passed after Task 4 changes (15 tests).
+- `cargo +1.88.0 fmt --check` passed after Task 4 changes.
+- `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed after Task 4 changes.
 
 Notes:
 - Do not add P1/P2 features before P0 acceptance is complete.

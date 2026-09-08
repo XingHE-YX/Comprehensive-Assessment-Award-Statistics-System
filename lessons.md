@@ -15,6 +15,11 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - A delegated implementation attempt can fail before producing code when the model service is unavailable (HTTP 503); record the failure and continue with local verification rather than treating it as a code defect.
 - Matching an error enum by value and then formatting the original error can trigger a partial-move compile error; borrow guarded payloads with `ref` when the value is still needed afterward.
 
+## 2026-09-08
+
+- Keep category JSON keys in one public constants module and consume those constants from the validators; this prevents schema drift and keeps strict Clippy checks clean before route and export layers use the keys.
+- Conditional category fields must be validated from the selected discriminator value, while unrelated category fields remain ignored so the shared submission payload can safely carry browser form data.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>填写成果 | 综测成果申报</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="page-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">综测成果申报</a>
+      <nav aria-label="主导航"><a href="/query">查询/修改</a></nav>
+    </div>
+  </header>
+
+  <main class="container student-shell">
+    <div class="context-line">{{ year_name }} / 新建申报</div>
+    <h1>填写成果</h1>
+    <p class="lead">带 <span class="required">*</span> 的项目必须填写。一次提交只填写一项成果。</p>
+
+    <form id="submission-form" method="post" action="/submit" enctype="multipart/form-data" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <fieldset class="form-section">
+        <legend>1. 身份信息</legend>
+        <div class="field-grid">
+          <div class="field"><label for="student-name">姓名<span class="required">*</span></label><input id="student-name" name="student_name" required maxlength="50" autocomplete="name"></div>
+          <div class="field"><label for="student-no">学号<span class="required">*</span></label><input id="student-no" name="student_no" required maxlength="30" inputmode="numeric" autocomplete="off"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>2. 是否有成果</legend>
+        <div class="choice-group" role="radiogroup" aria-label="成果选择">
+          <label class="choice"><input type="radio" name="has_result" value="yes" checked> 有成果，填写成果信息</label>
+          <label class="choice"><input type="radio" name="has_result" value="no"> 本学年无成果，提交声明</label>
+        </div>
+        <div id="declaration-confirm" class="notice notice-neutral" hidden>
+          <label class="choice"><input id="no-result-confirm" name="no_result_confirm" value="yes" type="checkbox"> 我确认本学年暂无成果材料。</label>
+        </div>
+      </fieldset>
+
+      <div data-result-fields>
+        <fieldset class="form-section">
+          <legend>3. 通用字段</legend>
+          <div class="field"><label for="result-name">成果名称<span class="required">*</span></label><input id="result-name" name="result_name" required maxlength="200"></div>
+          <div class="field-grid">
+            <div class="field"><label for="obtained-date">取得日期<span class="required">*</span></label><input id="obtained-date" name="obtained_date" type="date" required></div>
+            <div class="field"><label for="category">成果类别<span class="required">*</span></label>
+              <select id="category" name="category" required>
+                <option value="">请选择类别</option>
+                <option value="academic_competition">学术科技类竞赛</option>
+                <option value="sports_arts_competition">文体类比赛</option>
+                <option value="other_award">其他获奖表彰</option>
+                <option value="published_article">发表文章</option>
+                <option value="social_practice">社会实践/服务</option>
+                <option value="patent">专利</option>
+                <option value="certification">学习技能/资格证书</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label for="detail">详细说明</label><textarea id="detail" name="detail" rows="4" maxlength="4000"></textarea></div>
+          <div class="field"><label for="remark">备注</label><textarea id="remark" name="remark" rows="3" maxlength="4000"></textarea></div>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="academic_competition" hidden>
+          <legend>学术科技类竞赛</legend>
+          <div class="field"><label for="competition-name">竞赛完整名称<span class="required">*</span></label><input id="competition-name" name="competition_name" required></div>
+          <div class="field-grid"><div class="field"><label for="competition-type">学科竞赛类别<span class="required">*</span></label><select id="competition-type" name="competition_type" required><option value="">请选择</option><option>A+</option><option>A</option><option>B</option><option>C</option><option>未列入/不清楚</option></select></div><div class="field"><label for="catalog-no">目录序号</label><input id="catalog-no" name="catalog_no" maxlength="100"></div></div>
+          <div class="field-grid"><div class="field"><label for="academic-level">竞赛级别<span class="required">*</span></label><select id="academic-level" name="level" required><option value="">请选择</option><option>国家</option><option>省部</option><option>市</option><option>校</option></select></div><div class="field"><label for="academic-award">获奖等级<span class="required">*</span></label><select id="academic-award" name="award_level" required><option value="">请选择</option><option>一等奖</option><option>二等奖</option><option>三等奖</option><option>优秀/鼓励奖</option><option value="其他">其他</option></select></div></div>
+          <div class="field"><label for="other-award">实际奖项或名次</label><input id="other-award" name="other_award"></div>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="sports_arts_competition" hidden>
+          <legend>文体类比赛</legend>
+          <div class="field"><label for="sports-name">比赛完整名称<span class="required">*</span></label><input id="sports-name" name="competition_name" required></div>
+          <div class="field-grid"><div class="field"><label for="sports-level">比赛级别<span class="required">*</span></label><select id="sports-level" name="level" required><option value="">请选择</option><option>国家</option><option>省部</option><option>市</option><option>校</option><option>其他/不清楚</option></select></div><div class="field"><label for="has-award-level">是否有明确奖项等级<span class="required">*</span></label><select id="has-award-level" name="has_award_level" required><option value="">请选择</option><option value="yes">有</option><option value="no">无</option></select></div></div>
+          <div class="field-grid"><div class="field"><label for="sports-award">奖项等级</label><input id="sports-award" name="award_level"></div><div class="field"><label for="sports-rank">实际名次</label><input id="sports-rank" name="rank"></div></div>
+          <label class="choice"><input type="checkbox" name="is_seu_sports_meet" value="yes"> 东南大学运动会相关项目</label>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="other_award" hidden>
+          <legend>其他获奖表彰</legend>
+          <div class="field"><label for="award-name">荣誉完整名称<span class="required">*</span></label><input id="award-name" name="award_name" required></div>
+          <div class="field-grid"><div class="field"><label for="recognition-level">表彰级别<span class="required">*</span></label><input id="recognition-level" name="recognition_level" required></div><div class="field"><label for="school-honor-category">校级荣誉类别<span class="required">*</span></label><input id="school-honor-category" name="school_honor_category" required></div></div>
+          <div class="field"><label for="is-scholarship">是否奖学金/助学金<span class="required">*</span></label><select id="is-scholarship" name="is_scholarship" required><option value="">请选择</option><option value="yes">是</option><option value="no">否</option><option value="uncertain">不确定</option></select><p class="helper">选择“是”仍可提交，最终由管理员人工确认。</p></div>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="published_article" hidden>
+          <legend>发表文章</legend>
+          <div class="field"><label for="article-title">文章标题<span class="required">*</span></label><input id="article-title" name="title" required></div>
+          <div class="field"><label for="article-nature">文章性质<span class="required">*</span></label><select id="article-nature" name="nature" required><option value="">请选择</option><option value="academic">学术论文</option><option value="non_academic">非学术文章</option></select></div>
+          <div class="article-academic" data-article-fields="academic"><div class="field-grid"><div class="field"><label for="publication-type">发表类型</label><input id="publication-type" name="publication_type"></div><div class="field"><label for="author-order">作者排序</label><input id="author-order" name="author_order"></div></div><div class="field"><label for="journal-name">期刊名称</label><input id="journal-name" name="journal_name"></div></div>
+          <div class="article-non-academic" data-article-fields="non_academic" hidden><div class="field-grid"><div class="field"><label for="platform">发表平台</label><input id="platform" name="platform"></div><div class="field"><label for="publication-form">发表形式</label><input id="publication-form" name="publication_form"></div></div><div class="field"><label for="link-or-info">链接或发表信息</label><input id="link-or-info" name="link_or_info"></div></div>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="social_practice" hidden>
+          <legend>社会实践/服务</legend>
+          <div class="field"><label for="project-name">项目名称<span class="required">*</span></label><input id="project-name" name="project_name" required></div>
+          <div class="field-grid"><div class="field"><label for="social-level">项目级别<span class="required">*</span></label><input id="social-level" name="level" required></div><div class="field"><label for="identity">本人身份<span class="required">*</span></label><input id="identity" name="identity" required></div></div>
+          <div class="field"><label for="social-award">获奖等级或无具体等级<span class="required">*</span></label><input id="social-award" name="award_level_or_none" required></div>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="patent" hidden>
+          <legend>专利</legend>
+          <div class="field"><label for="patent-name">专利名称<span class="required">*</span></label><input id="patent-name" name="name" required></div>
+          <div class="field-grid"><div class="field"><label for="patent-type">专利类型<span class="required">*</span></label><input id="patent-type" name="type" required></div><div class="field"><label for="patent-status">专利状态<span class="required">*</span></label><input id="patent-status" name="status" required></div></div>
+          <div class="field-grid"><div class="field"><label for="patent-ranking">项目组排名<span class="required">*</span></label><input id="patent-ranking" name="ranking" required></div><div class="field"><label for="patent-no">专利号或申请号<span class="required">*</span></label><input id="patent-no" name="patent_no" required></div></div>
+        </fieldset>
+
+        <fieldset class="form-section category-fields" data-category-section="certification" hidden>
+          <legend>学习技能/资格证书</legend>
+          <div class="field"><label for="certificate-type">证书/考试类型<span class="required">*</span></label><select id="certificate-type" name="certificate_type" required><option value="">请选择</option><option value="CET-6">CET-6</option><option value="computer">计算机</option><option value="雅思/托福">雅思/托福</option><option value="other">其他资格证书</option></select></div>
+          <div class="field" data-certificate-fields="CET-6"><label for="cet6-score">CET-6 成绩</label><input id="cet6-score" name="cet6_score" inputmode="decimal"></div>
+          <div data-certificate-fields="computer"><div class="field-grid"><div class="field"><label for="computer-category">计算机专业类别</label><input id="computer-category" name="computer_category"></div><div class="field"><label for="exam-level">计算机考试等级</label><input id="exam-level" name="exam_level"></div></div></div>
+          <div class="field" data-certificate-fields="雅思/托福"><label for="language-score">雅思/托福成绩</label><input id="language-score" name="language_score" inputmode="decimal"></div>
+          <div class="field" data-certificate-fields="other"><label for="qualification-name">其他资格证书名称</label><input id="qualification-name" name="qualification_name"></div>
+        </fieldset>
+
+        <fieldset class="form-section">
+          <legend>5. 证明材料</legend>
+          <div class="field"><label for="attachments">上传证明材料<span class="required">*</span></label><input id="attachments" name="attachments" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple required><p class="helper">支持 JPG、PNG、PDF；每个文件不超过 10 MiB，每项成果 1-10 个文件。</p></div>
+        </fieldset>
+      </div>
+
+      <div class="form-actions"><button class="button button-primary" type="submit">提交申报</button><a class="button button-secondary" href="/">返回首页</a></div>
+      {% match error %}{% when Some with (message) %}<div class="notice notice-error" role="alert">{{ message }}</div>{% when None %}{% endmatch %}
+    </form>
+  </main>
+  <script type="module" src="/static/js/submission-form.js"></script>
+</body>
+</html>
