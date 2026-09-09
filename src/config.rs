@@ -35,10 +35,22 @@ impl Config {
         let admin_password_hash = required("ADMIN_PASSWORD_HASH")?;
         let password_hash = password_hash::PasswordHash::new(&admin_password_hash)
             .map_err(|_| ConfigError::Invalid("ADMIN_PASSWORD_HASH"))?;
+        // PHC syntax/Params parsing alone does not validate the algorithm's
+        // version or decoded salt. Match the checks used by Argon2 verification.
+        let mut salt_buffer = [0_u8; 64];
+        let valid_salt = password_hash
+            .salt
+            .and_then(|salt| salt.decode_b64(&mut salt_buffer).ok())
+            .is_some_and(|salt| salt.len() >= argon2::MIN_SALT_LEN);
         if password_hash.algorithm.as_str() != "argon2id"
-            || password_hash.salt.is_none()
+            || !valid_salt
             || password_hash.hash.is_none()
             || argon2::Params::try_from(&password_hash).is_err()
+            || password_hash
+                .version
+                .map(argon2::Version::try_from)
+                .transpose()
+                .is_err()
         {
             return Err(ConfigError::Invalid("ADMIN_PASSWORD_HASH"));
         }

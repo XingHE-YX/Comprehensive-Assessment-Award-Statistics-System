@@ -88,7 +88,7 @@ curl --fail https://你的公共域名/healthz
 
 ## 每日备份
 
-主机需 Bash、SQLite CLI 和 Docker Compose。执行 `sudo /opt/zongce/app/scripts/backup.sh`：脚本获取互斥锁，检查 web 是否正在运行，短暂停止 web，再用 SQLite `.backup`（包含已提交 WAL）和 uploads 创建同一时点的完整快照。通过 `integrity_check` 后原子发布 `snapshot-*`，恢复原本运行的 web，然后轮转，默认至少保留最近 7 份完整数据库及其附件。不存在把 WAL 模式主数据库直接 `cp` 后当成完整备份的步骤。
+主机需 Bash、SQLite CLI 和 Docker Compose。执行 `sudo /opt/zongce/app/scripts/backup.sh`：脚本获取互斥锁，读取 web 容器的明确状态，短暂停止 running 或 restarting 的 web，并确认容器已经停止，再用 SQLite `.backup`（包含已提交 WAL）和 uploads 创建同一时点的完整快照。未知/暂停等状态安全失败，不制作快照。通过 `integrity_check` 后原子发布 `snapshot-*`，恢复原本有运行意图的 web，然后轮转，默认至少保留最近 7 份完整数据库及其附件。不存在把 WAL 模式主数据库直接 `cp` 后当成完整备份的步骤。
 
 每天备份有短暂维护窗口（期间 Caddy 可返回 502）；上传量大时窗口会增长。失败返回非零并写 stderr 和 `/opt/zongce/backups/backup.log`，不轮转未完成快照；即使备份失败，也尝试恢复原本运行的 web。原本已停止的 web 保持停止。若服务恢复失败，日志明确 `stage=service_restart`，需运维处理。日志、快照默认仅属主可读写。`SIGKILL` 或主机断电无法触发清理，遗留 `.backup-lock` 时确认没有备份进程后再用 `rmdir` 移除锁；不要并行执行多个备份。
 
@@ -159,6 +159,7 @@ cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
 python3 tests/backup.py
+python3 tests/backup_failures.py
 bash -n scripts/backup.sh tests/smoke.sh
 docker compose config --quiet
 ```

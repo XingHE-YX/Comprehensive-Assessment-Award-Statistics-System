@@ -21,12 +21,18 @@ partial=
 locked=false
 restart_required=false
 log_ready=false
+# Raw utility/bash diagnostics may contain private absolute paths. Preserve the
+# caller's stderr only for our controlled events, including inside EXIT cleanup.
+exec 3>&2 2>/dev/null
 
 log() {
     local entry
     entry="$(date -u +%Y-%m-%dT%H:%M:%SZ) $*"
-    echo "$entry" >&2
-    if $log_ready; then echo "$entry" >> "$BACKUP_DIR/backup.log"; fi
+    echo "$entry" >&3
+    if $log_ready && ! echo "$entry" >> "$BACKUP_DIR/backup.log"; then
+        echo 'event=backup_failed stage=log_write' >&3
+        return 1
+    fi
 }
 
 compose() { docker compose --project-directory "$PROJECT_DIR" -f "$PROJECT_DIR/docker-compose.yml" "$@"; }
@@ -42,9 +48,21 @@ finish() {
         fi
     fi
     # Only the mktemp directory created by this invocation can be cleaned up.
-    if [[ -n $partial && $partial == "$BACKUP_DIR"/.partial.* && -d $partial ]]; then rm -rf -- "$partial"; fi
-    if $locked; then rmdir "$BACKUP_DIR/.backup-lock"; fi
-    if [[ $result != 0 ]]; then log "event=backup_failed stage=$stage exit_code=$result"; fi
+    if [[ -n $partial && $partial == "$BACKUP_DIR"/.partial.* && -d $partial ]]; then
+        if ! rm -rf -- "$partial"; then
+            result=1
+            log 'event=backup_failed stage=partial_cleanup'
+        fi
+    fi
+    if $locked && ! rmdir "$BACKUP_DIR/.backup-lock"; then
+        result=1
+        log 'event=backup_failed stage=lock_cleanup'
+    fi
+    if [[ $result != 0 ]]; then
+        log "event=backup_failed stage=$stage exit_code=$result"
+    elif ! log 'event=backup_complete status=ok'; then
+        result=1
+    fi
     exit "$result"
 }
 trap finish EXIT
@@ -82,12 +100,23 @@ mkdir "$BACKUP_DIR/.backup-lock" 2>/dev/null
 locked=true
 if ! $offline; then
     stage=service_status
-    running=$(compose ps --status running --services 2>/dev/null)
-    if [[ $'\n'$running$'\n' == *$'\nweb\n'* ]]; then
-        # Set before stop so even a partially failed stop tries to restore service.
-        restart_required=true
-        stage=service_stop
-        compose stop web >/dev/null 2>&1
+    container=$(compose ps --all --quiet web)
+    if [[ -n $container ]]; then
+        # A restarting container still intends to run and can write again at any
+        # moment. Never infer quiescence from the running-only Compose listing.
+        [[ $container =~ ^[[:xdigit:]]+$ ]] || exit 1
+        container_state=$(docker inspect --format '{{.State.Status}}' "$container")
+        case $container_state in
+            running|restarting)
+                restart_required=true
+                stage=service_stop
+                compose stop web >/dev/null 2>&1
+                container_state=$(docker inspect --format '{{.State.Status}}' "$container")
+                [[ $container_state == exited || $container_state == created ]] || exit 1
+                ;;
+            exited|created) ;;
+            *) exit 1 ;;
+        esac
     fi
 fi
 stage=snapshot
@@ -116,4 +145,3 @@ while IFS= read -r candidate; do
         rm -rf -- "$candidate"
     fi
 done < <(ls -1dt "$BACKUP_DIR"/snapshot-*)
-log 'event=backup_complete status=ok'

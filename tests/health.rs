@@ -70,6 +70,58 @@ fn startup_rejects_missing_and_malformed_configuration_without_leaking_values() 
 }
 
 struct Process(std::process::Child);
+
+#[test]
+fn invalid_argon2_versions_and_short_salts_fail_before_runtime_initialization() {
+    let dir = tempfile::tempdir().unwrap();
+    let valid = hash_secret(&generate_edit_code()).unwrap();
+    let short_salt = valid
+        .split('$')
+        .enumerate()
+        .map(|(index, part)| if index == 4 { "YWJjZA" } else { part })
+        .collect::<Vec<_>>()
+        .join("$");
+    for invalid in [valid.replace("v=19", "v=999"), short_salt] {
+        let output = command(dir.path())
+            .env("ADMIN_PASSWORD_HASH", &invalid)
+            .env("UPLOAD_DIR", "/dev/null/unavailable")
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        let logs = String::from_utf8(output.stdout).unwrap();
+        assert!(
+            logs.contains("configuration_invalid"),
+            "invalid Argon2 PHC reached runtime initialization: {logs}"
+        );
+        assert!(logs.contains("ADMIN_PASSWORD_HASH"));
+        assert!(!logs.contains("upload_directory"));
+        assert!(!logs.contains(&invalid));
+    }
+}
+
+#[test]
+fn supported_argon2_versions_and_minimum_salt_pass_configuration() {
+    use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
+    let dir = tempfile::tempdir().unwrap();
+    let salt = password_hash::SaltString::encode_b64(b"salt1234").unwrap();
+    for version in [Version::V0x10, Version::V0x13] {
+        let hash = Argon2::new(Algorithm::Argon2id, version, Params::default())
+            .hash_password(generate_edit_code().as_bytes(), &salt)
+            .unwrap()
+            .to_string();
+        let output = command(dir.path())
+            .env("ADMIN_PASSWORD_HASH", hash)
+            .env("UPLOAD_DIR", "/dev/null/unavailable")
+            .output()
+            .unwrap();
+        let logs = String::from_utf8(output.stdout).unwrap();
+        assert!(
+            logs.contains("upload_directory"),
+            "supported PHC was rejected: {logs}"
+        );
+        assert!(!logs.contains("configuration_invalid"));
+    }
+}
 impl Drop for Process {
     fn drop(&mut self) {
         let _ = self.0.kill();
