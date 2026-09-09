@@ -1,5 +1,6 @@
 mod admin;
 mod admin_auth;
+mod admin_export;
 mod admin_settings;
 mod admin_submissions;
 mod fields;
@@ -48,6 +49,7 @@ fn router(
 ) -> Router {
     let protected = Router::new()
         .route("/admin", get(admin::dashboard))
+        .route("/admin/export.xlsx", get(admin_export::download))
         .route("/admin/logout", axum::routing::post(admin_auth::logout))
         .route("/admin/submissions/{id}", get(admin_submissions::detail))
         .route(

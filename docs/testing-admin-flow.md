@@ -36,7 +36,7 @@ Coverage at 320x568, 390x844, 768x1024 and 1440x900:
 
 Administrator JavaScript is disabled in the tablet run to verify server-rendered forms remain usable. Screenshots are saved in `/tmp/zongce-admin-screenshots` (override with `ZONGCE_SCREENSHOTS`); the script also checks page overflow and JavaScript errors. Student seven-category regression instructions remain in `docs/testing-student-flow.md`.
 
-Settings is available after Task 8; Excel remains disabled until Task 9. Docker/Compose validation requires Task 10 files and an installed Docker runtime; this task does not validate deployment.
+Settings is available after Task 8. Task 9 enables current-year and filtered Excel downloads; the administrator suite now checks filtered/empty/current-year XLSX content and logout revocation. See `testing-export.md`. Docker/Compose validation requires Task 10 files and an installed Docker runtime; this task does not validate deployment.
 
 
 ## Academic-year and class-code settings (Task 8)
@@ -53,4 +53,4 @@ The in-flight settings regression uses a real HTTP connection with `Expect: 100-
 
 The browser script starts/stops an isolated admin preview and exercises create, activate, invalid date errors, prefilled editing, deadline closure/clearing, historical student/admin detail and attachment access, blank-code errors, and old/new class-code verification at all four prescribed viewport sizes. Tablet admin forms run with JavaScript disabled. It checks secret non-echo, duplicate IDs, JavaScript errors and page overflow. Screenshots default to `/tmp/zongce-settings-screenshots`; override with `ZONGCE_SCREENSHOTS`. Use `ZONGCE_PREVIEW_BIN` when the compiled preview is in a custom Cargo target directory.
 
-Task 8 preserves data needed by exports; actual XLSX downloads remain unimplemented until Task 9. Docker Compose and production startup remain the previously recorded Task 10/Task 1 work.
+Task 9 consumes the preserved historical records, and the settings browser suite now downloads the renamed historical year after activating a replacement. Docker Compose and production startup remain the previously recorded Task 10/Task 1 work.

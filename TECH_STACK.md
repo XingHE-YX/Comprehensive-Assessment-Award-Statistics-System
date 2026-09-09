@@ -60,6 +60,7 @@ tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "test-uti
 - CSS: one checked-in `static/css/app.css`; no remote stylesheet.
 - Icons: inline text or CSS-safe symbols only; no icon CDN in v1.
 - Browser test: Playwright `1.52.0` may be installed outside the production image for smoke tests.
+- XLSX test inspection: Python `3.9.6` (standard library `zipfile`/`xml.etree`/`json`, development checks only). `cargo test --test export` invokes `python3` to inspect generated ZIP/XML independently of the writer. No Python application runtime or pip dependency is introduced.
 
 ## HTTP and data formats
 

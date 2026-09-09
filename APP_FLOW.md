@@ -225,15 +225,17 @@ Error state: Invalid dates/order, duplicate year name, invalid deadline, overlon
 
 ## Page: Admin Export (`GET /admin/export.xlsx`)
 
-Trigger: The administrator clicks Export.
+Trigger: The administrator clicks Export Current Year in the shared navigation, or Export Filtered Results beside the dashboard table.
 
 Steps:
 
-1. Verify admin session and validate the optional year/filter parameters.
-2. Query matching submissions and declarations.
-3. Generate `申报明细` and `学生汇总` using the fixed column map.
-4. Return an `.xlsx` response with UTF-8 filename disposition.
+1. Verify the admin session and use the dashboard's year/name/student-number/category/status validation. An omitted year defaults to the active year, an explicitly empty year selects all years, and no active year defaults to all historical years. The filtered link carries the displayed year explicitly, so switching the active year does not change its scope.
+2. Read academic years, selected submissions, declarations and attachment metadata in one database snapshot. Declarations apply only year/name/student-number filters because they have no category/status.
+3. Generate `申报明细` (34 fixed columns) and `学生汇总` (10 fixed columns) off the asynchronous request workers. Group the union of submissions and declarations by student number plus name; only Approved scores contribute to totals. Dates/timestamps and scores are native spreadsheet values, while student numbers and other identifiers remain text. Timestamps use UTC. Category fields are expanded into their named columns; supplemental fields with no dedicated column are retained as labeled prose in Detail.
+4. Return an `.xlsx` response with a sanitized UTF-8 filename `<academic year>综测申报汇总.xlsx`, an ASCII fallback, `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. All-year exports use `全部学年` as the filename prefix. Attachment cells contain original names and protected relative download identifiers, never public file paths or credentials.
 
 Success state: The workbook downloads and opens in Excel or LibreOffice.
 
-Error state: Empty results still produce headers and a valid workbook; generation failure returns 500 and logs the error.
+Compatibility state: Dates before 1900 remain readable ISO text. Text beyond Excel's 32,767-unit cell limit has an explicit truncation notice and a protected administrator-detail path for the full original. The database text remains unchanged. Non-finite stored numeric values produce the generic generation error instead of text in a numeric column.
+
+Error state: Empty results still produce headers, filters and frozen first rows in a valid workbook. Invalid filter values redirect back to the dashboard with the original filter values, where the existing visible notice explains that invalid conditions were ignored; the administrator can then export the displayed selection. Extraction errors return a safe Chinese 400. Generation failure returns a generic Chinese 500 and logs only the route/status/failure stage, without cell contents, credentials or internal paths.

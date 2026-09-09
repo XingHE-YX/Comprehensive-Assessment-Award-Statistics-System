@@ -1,4 +1,4 @@
-use super::{SubmissionFilter, submissions::literal_keyword};
+use super::SubmissionFilter;
 use chrono::Utc;
 use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
 
@@ -11,22 +11,25 @@ impl DeclarationRepo {
     pub async fn count(pool: &SqlitePool, filter: &SubmissionFilter) -> Result<i64, sqlx::Error> {
         let mut query =
             QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM student_declarations WHERE 1 = 1");
-        if let Some(id) = filter.academic_year_id {
-            query.push(" AND academic_year_id = ").push_bind(id);
-        }
-        if let Some(name) = &filter.name {
-            query
-                .push(" AND student_name LIKE ")
-                .push_bind(literal_keyword(name))
-                .push(" ESCAPE '\\'");
-        }
-        if let Some(number) = &filter.student_no {
-            query
-                .push(" AND student_no LIKE ")
-                .push_bind(literal_keyword(number))
-                .push(" ESCAPE '\\'");
-        }
+        filter.push_identity_predicates(&mut query);
         query.build_query_scalar().fetch_one(pool).await
+    }
+
+    pub async fn list<'e>(
+        executor: impl sqlx::Executor<'e, Database = Sqlite>,
+        filter: &SubmissionFilter,
+    ) -> Result<Vec<StudentDeclaration>, sqlx::Error> {
+        let mut query =
+            QueryBuilder::<Sqlite>::new("SELECT * FROM student_declarations WHERE 1 = 1");
+        filter.push_identity_predicates(&mut query);
+        query.push(" ORDER BY student_no, student_name, id");
+        query
+            .build()
+            .fetch_all(executor)
+            .await?
+            .into_iter()
+            .map(row_to_declaration)
+            .collect()
     }
 
     pub async fn upsert(

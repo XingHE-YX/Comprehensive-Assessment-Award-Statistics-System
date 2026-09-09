@@ -25,6 +25,8 @@ pub enum AppError {
     Template,
     #[error("请求体无法解析")]
     Multipart,
+    #[error("导出失败，请稍后重试")]
+    Export,
 }
 
 impl IntoResponse for AppError {

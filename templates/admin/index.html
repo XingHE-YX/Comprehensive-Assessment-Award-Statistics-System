@@ -26,7 +26,8 @@
     </form>
   </section>
   <section class="admin-section" aria-labelledby="list-heading">
-    <h2 id="list-heading">申报列表</h2>
+    <div class="admin-heading export-heading"><h2 id="list-heading">申报列表</h2><a id="export-filtered" href="{{ export_url }}" class="button button-primary">导出筛选结果 Excel</a></div>
+    <p class="helper">导出包含申报明细和学生汇总，仅累加已通过分值。无材料声明仅按学年、姓名和学号筛选；空结果也可导出表头。</p>
     {% if data.submissions.is_empty() %}<p class="notice notice-neutral">没有符合筛选条件的申报。可调整上方条件，或<a href="/admin?academic_year_id=">查看全部学年</a>。</p>
     {% else %}
     <p id="table-hint" class="helper">按提交时间从新到旧排列。窄屏可横向滚动查看所有列。</p>

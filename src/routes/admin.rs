@@ -26,6 +26,7 @@ struct DashboardTemplate {
     filter: SubmissionFilter,
     invalid_filters: bool,
     data: DashboardData,
+    export_url: String,
 }
 impl DashboardTemplate {
     fn categories(&self) -> &'static [Category] {
@@ -58,6 +59,7 @@ pub async fn dashboard(
     let Query(values) = values.map_err(|_| AppError::BadRequest)?;
     let years = AcademicYearRepo::list(&state.db).await?;
     let (filter, invalid_filters) = dashboard_filters(&values, &years);
+    let export_url = filtered_export_url(&filter);
     let data = DashboardData::load(&state.db, &filter).await?;
     let active_year_name = years
         .iter()
@@ -71,8 +73,61 @@ pub async fn dashboard(
         filter,
         invalid_filters,
         data,
+        export_url,
     }
     .render()
     .map(Html)
     .map_err(|_| AppError::Template)
+}
+
+fn filtered_export_url(filter: &SubmissionFilter) -> String {
+    // Explicit year (including empty = all) keeps the download aligned with the
+    // displayed table even if an administrator activates another year meanwhile.
+    let values = BTreeMap::from([
+        (
+            "academic_year_id".into(),
+            filter
+                .academic_year_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+        ),
+        ("name".into(), filter.name.clone().unwrap_or_default()),
+        (
+            "student_no".into(),
+            filter.student_no.clone().unwrap_or_default(),
+        ),
+        (
+            "category".into(),
+            filter
+                .category
+                .map(|c| c.as_str().to_owned())
+                .unwrap_or_default(),
+        ),
+        (
+            "status".into(),
+            filter
+                .status
+                .map(|s| s.as_str().to_owned())
+                .unwrap_or_default(),
+        ),
+    ]);
+    format!("/admin/export.xlsx?{}", encode_query(&values))
+}
+
+pub(super) fn encode_query(values: &BTreeMap<String, String>) -> String {
+    [
+        "academic_year_id",
+        "name",
+        "student_no",
+        "category",
+        "status",
+    ]
+    .into_iter()
+    .filter_map(|key| {
+        values
+            .get(key)
+            .map(|value| format!("{key}={}", urlencoding::encode(value)))
+    })
+    .collect::<Vec<_>>()
+    .join("&")
 }

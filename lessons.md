@@ -51,6 +51,18 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - Rechecking settings only before parsing an upload allows a concurrent activation/deadline/date edit to be bypassed. After multipart parsing, acquire the write lock and reload the active year before validation and persistence for both results and declarations. A real `Expect: 100-continue` request provides a deterministic regression boundary without sleeps.
 - Build failure E0425 during the repository transaction refactor came from a broad replacement of `fetch_one(pool)` that also changed an unrelated count query to an out-of-scope `connection`. Restrict executor substitutions to the function being refactored and inspect the complete diff before building.
 
+## 2026-09-10 — Task 9
+
+- Build failure E0277 in workbook assertions: `&serde_json::Value` cannot be compared with an owned `String`; extract the cell's `as_str`/`as_f64` value first. Strict Clippy rejected the nested category fixture tuple as `type_complexity`; use a named test case alias. Run `cargo fmt` after editing assertions before the format gate.
+- A proposed overlong `detail` test fixture failed SQLite's 4000-character CHECK before reaching XLSX generation. Use data actually accepted at the relevant boundary. Axum Query decoding also replaces invalid UTF-8 with a replacement character, so `%FF` does not itself cause an extractor rejection.
+- Askama 0.14 escapes URL separators as decimal `&#38;`, not just `&amp;`. Passing the raw HTML attribute into an HTTP test turned the remaining filters into a URL fragment and falsely suggested a filtering bug. Decode the emitted entity and verify actual browser clicks.
+- A real student multipart request can save category text beyond Excel's cell limit. Direct `write_string` then fails the entire export (32768 CJK characters reproduced through HTTP). At the XLSX boundary, cap text at 32767 UTF-16 units, reserve room for an explicit Chinese truncation notice and protected original-detail path, and keep database text complete. Unicode scalar counting alone misses emoji surrogate pairs.
+- Validation accepts `award_detail` and `actual_award_rank` as legacy Other-award aliases, while the shared detail view previously displayed only `other_award`. An export's original-detail reference must expose the same complete value; normalize supported aliases before display/edit prefilling. Both aliases now have regression coverage.
+- Year settings accept 0001-9999, while Excel's native 1900 date system cannot reliably display earlier dates. A configured 1800-1801 year and valid student submission reproduced export 500. Export pre-1900 obtained dates as readable ISO text and keep normal dates native.
+- Multiplying each finite approved score by 100 can overflow (`1e308` reproduced), and rust_xlsxwriter writes infinity as text. Round the final total only when the scaling remains finite; explicitly reject non-finite numbers before writing so numeric columns do not silently change type.
+- A multi-file documentation patch failed context verification because its task-section hunks were out of source order. Read the current task block, apply ordered contextual hunks and check the diff; never broadly replace repeated Step labels across tasks.
+- LibreOffice headless emitted host Fontconfig cache-directory warnings but returned zero and re-saved all sample workbooks. Inspect the converted ZIP/XML and cell values before classifying tool warnings as workbook failures; the checked files preserved Chinese text, numeric types, filters and frozen panes.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

@@ -123,34 +123,14 @@ impl SubmissionRepo {
             .transpose()
     }
 
-    pub async fn list(
-        pool: &SqlitePool,
+    pub async fn list<'e>(
+        executor: impl sqlx::Executor<'e, Database = Sqlite>,
         filter: &SubmissionFilter,
     ) -> Result<Vec<Submission>, sqlx::Error> {
         let mut query = QueryBuilder::<Sqlite>::new("SELECT * FROM submissions WHERE 1 = 1");
-        if let Some(year_id) = filter.academic_year_id {
-            query.push(" AND academic_year_id = ").push_bind(year_id);
-        }
-        if let Some(name) = &filter.name {
-            query
-                .push(" AND student_name LIKE ")
-                .push_bind(literal_keyword(name))
-                .push(" ESCAPE '\\'");
-        }
-        if let Some(student_no) = &filter.student_no {
-            query
-                .push(" AND student_no LIKE ")
-                .push_bind(literal_keyword(student_no))
-                .push(" ESCAPE '\\'");
-        }
-        if let Some(category) = filter.category {
-            query.push(" AND category = ").push_bind(category.as_str());
-        }
-        if let Some(status) = filter.status {
-            query.push(" AND status = ").push_bind(status.as_str());
-        }
+        filter.push_predicates(&mut query);
         query.push(" ORDER BY created_at DESC, id DESC");
-        let rows = query.build().fetch_all(pool).await?;
+        let rows = query.build().fetch_all(executor).await?;
         rows.into_iter().map(row_to_submission).collect()
     }
 
@@ -178,6 +158,39 @@ impl SubmissionRepo {
         }
         transaction.commit().await?;
         Ok(())
+    }
+}
+
+impl SubmissionFilter {
+    /// Shared by the dashboard, export records and export attachment subquery.
+    pub(super) fn push_predicates(&self, query: &mut QueryBuilder<'_, Sqlite>) {
+        self.push_identity_predicates(query);
+        if let Some(category) = self.category {
+            query.push(" AND category = ").push_bind(category.as_str());
+        }
+        if let Some(status) = self.status {
+            query.push(" AND status = ").push_bind(status.as_str());
+        }
+    }
+
+    /// No-material declarations have no category or review status.
+    pub(super) fn push_identity_predicates(&self, query: &mut QueryBuilder<'_, Sqlite>) {
+        if let Some(id) = self.academic_year_id {
+            query.push(" AND academic_year_id = ").push_bind(id);
+        }
+        for (column, value) in [
+            ("student_name", &self.name),
+            ("student_no", &self.student_no),
+        ] {
+            if let Some(value) = value {
+                query
+                    .push(" AND ")
+                    .push(column)
+                    .push(" LIKE ")
+                    .push_bind(literal_keyword(value))
+                    .push(" ESCAPE '\\'");
+            }
+        }
     }
 }
 

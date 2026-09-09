@@ -405,19 +405,19 @@
 - `export_xlsx(submissions, declarations, filter) -> Result<Vec<u8>>`。
 - 工作表固定为 `申报明细`、`学生汇总`；附件列输出数量和下载标识，不把 `category_data` 原 JSON 直接写入单元格。
 
-- [ ] **Step 1: 编写 xlsx 内容和格式测试**
+- [x] **Step 1: 编写 xlsx 内容和格式测试**
 
   读取生成文件，验证两张工作表、34 列明细字段、学生按“学号 + 姓名”分组、仅 `approved` 计入总分、日期和分值为正确类型、首行冻结和筛选存在。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
   运行：`cargo test --test export`
 
-- [ ] **Step 3: 实现字段展开、格式、列宽和下载响应**
+- [x] **Step 3: 实现字段展开、格式、列宽和下载响应**
 
   分值使用数字格式且最多两位小数；中文状态使用中文显示；文件名使用 `<学年>综测申报汇总.xlsx`。
 
-- [ ] **Step 4: 运行测试并提交**
+- [x] **Step 4: 运行测试并提交**
 
   运行：`cargo test --test export`
 

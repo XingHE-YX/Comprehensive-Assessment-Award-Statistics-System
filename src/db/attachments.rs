@@ -15,6 +15,25 @@ pub struct NewAttachment {
 pub struct AttachmentRepo;
 
 impl AttachmentRepo {
+    /// Fetch selected metadata in one query; exporting never opens stored files.
+    pub async fn list_for_filter<'e>(
+        executor: impl sqlx::Executor<'e, Database = sqlx::Sqlite>,
+        filter: &super::SubmissionFilter,
+    ) -> Result<Vec<Attachment>, sqlx::Error> {
+        let mut query = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "SELECT * FROM attachments WHERE submission_id IN (SELECT id FROM submissions WHERE 1 = 1",
+        );
+        filter.push_predicates(&mut query);
+        query.push(") ORDER BY submission_id, created_at, id");
+        query
+            .build()
+            .fetch_all(executor)
+            .await?
+            .into_iter()
+            .map(row_to_attachment)
+            .collect()
+    }
+
     pub async fn count_in_transaction(
         connection: &mut SqliteConnection,
         submission_id: i64,

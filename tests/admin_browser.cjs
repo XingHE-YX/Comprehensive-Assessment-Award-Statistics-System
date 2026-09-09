@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 const { randomBytes } = require("node:crypto");
 const { chromium } = require(process.env.ZONGCE_PLAYWRIGHT_MODULE || "playwright");
 const password = randomBytes(24).toString("hex");
@@ -132,9 +132,42 @@ const baseUrl = new Promise((resolve, reject) => {
       await admin.goto(base + "/admin?student_no=ADMIN-TEST-" + width + "&status=approved");
       assert.equal(await admin.locator("#count-approved").innerText(),"1");
       assert.equal(await admin.locator("#approved-total").innerText(),"2.35");
+      const downloadWorkbook = async (link, suffix) => {
+        const downloaded = admin.waitForEvent("download");
+        await link.click();
+        const file = await downloaded;
+        assert.equal(file.suggestedFilename(), "2025-2026学年综测申报汇总.xlsx");
+        const filename = path.join(output, width + "-" + suffix + ".xlsx");
+        await file.saveAs(filename);
+        const parsed = spawnSync("python3", [path.join(__dirname, "support/read_xlsx.py"), filename], { encoding: "utf8" });
+        assert.equal(parsed.status, 0, parsed.stderr);
+        return JSON.parse(parsed.stdout);
+      };
+      const exported = await downloadWorkbook(admin.locator("#export-filtered"), "filtered");
+      assert.deepEqual(exported.map(s => s.name), ["申报明细", "学生汇总"]);
+      assert.equal(exported[0].rows.length, 2);
+      assert.equal(exported[0].rows[1].B2.value, number);
+      assert.equal(exported[0].rows[1].AD2.value, "已通过");
+      assert.equal(exported[0].rows[1].AF2.value, 2.35);
+      assert.equal(exported[1].rows[1].I2.value, 2.35);
+      await checkWidth();
+      await admin.screenshot({path:path.join(output,width+"-export.png"),fullPage:true});
+      if (width < 640) {
+        const button = await admin.locator("#export-filtered").boundingBox();
+        const heading = await admin.locator("#list-heading").boundingBox();
+        assert(button.y >= heading.y + heading.height, "Mobile export action should stack below its heading");
+        assert.equal(Math.round(button.width), width - 32);
+      }
+      await admin.goto(base + "/admin?student_no=NO-MATCH-" + width);
+      const empty = await downloadWorkbook(admin.locator("#export-filtered"), "empty");
+      assert.equal(empty[0].rows.length, 1);
+      assert.equal(empty[1].rows.length, 1);
+      const current = await downloadWorkbook(admin.getByRole("link", {name:"导出当前学年", exact:true}), "current");
+      assert(current[0].rows.length >= 2);
       await admin.getByRole("button",{name:"退出登录"}).click();
       await admin.waitForURL("**/admin/login");
       assert.equal((await adminContext.request.get(base + attachmentUrl)).status(),403);
+      assert.equal((await adminContext.request.get(base + "/admin/export.xlsx", {maxRedirects:0})).status(),303);
       await admin.goto(detailUrl);
       assert(admin.url().endsWith("/admin/login"));
       assert.deepEqual(errors,[]);

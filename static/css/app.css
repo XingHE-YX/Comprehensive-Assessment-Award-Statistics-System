@@ -140,6 +140,7 @@ summary { cursor: pointer; font-weight: 600; }
   .panel { padding: 20px 16px; }
   .field-grid { grid-template-columns: 1fr; }
   .form-actions { align-items: stretch; flex-direction: column; }
+  .export-heading { align-items: stretch; flex-direction: column; }
   .form-actions .button, .panel .button { width: 100%; }
   .meta-list div { display: grid; gap: 0; }
   nav { gap: 10px; }

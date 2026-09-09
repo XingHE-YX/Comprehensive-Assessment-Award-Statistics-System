@@ -216,6 +216,20 @@ pub(super) fn submission_values(
             stored_values.insert(key.clone(), text);
         }
     }
+    // Legacy award keys accepted by validation must remain visible at the source
+    // linked from an export, and editable through the canonical form field.
+    if submission.category == crate::domain::Category::AcademicCompetition
+        && stored_values
+            .get("other_award")
+            .is_none_or(|value| value.trim().is_empty())
+        && let Some(value) = ["award_detail", "actual_award_rank"]
+            .into_iter()
+            .filter_map(|key| stored_values.get(key))
+            .find(|value| !value.trim().is_empty())
+            .cloned()
+    {
+        stored_values.insert("other_award".into(), value);
+    }
     let mut category_fields = Vec::new();
     for section in super::fields::category_sections() {
         if section.category != submission.category {

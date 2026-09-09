@@ -164,6 +164,18 @@ New years are inactive. Editing metadata never changes activation. Activation ac
 
 Class access codes contain 1-256 characters, cannot be entirely whitespace or contain control characters, and preserve the exact entered value. Hashing runs on a blocking worker before a transactional settings update. Neither the submitted code nor the hash is rendered. The new hash applies to the next access verification; existing short-lived submission sessions retain their original scope until expiry or a year switch.
 
+### Excel export
+
+`GET /admin/export.xlsx` uses the same administrator guard and normalized filters as the dashboard. Invalid filter values redirect with 303 to `/admin` with the same filter inputs so its visible warning is shown before a download. Default/current/historical/all-year and literal keyword semantics match the list. The filtered dashboard link includes an explicit academic-year id (or an empty all-year value), preserving the displayed scope across later activation changes.
+
+`services/export` reads years, submissions, declarations and selected attachment metadata in one read transaction. Repository queries share bound filter predicates; attachments are fetched in one query without reading files. After the snapshot is released, `spawn_blocking` invokes `src/export/xlsx.rs`. There are no database writes, new migrations or new runtime dependencies.
+
+The workbook contains the fixed 34-column detail and 10-column summary schema documented in `docs/testing-export.md`. Summary identities are the union of selected results and declarations, grouped by `(student_no, student_name)` across the selected years. Declaration filtering ignores category/status. Counts use selected submissions; the total includes only Approved scores and rounds to two decimals without overflowing large finite scores during rounding. All-year export intentionally merges identical student identities across years; the detail sheet retains each record's year. Non-applicable conditional fields remain empty, identifiers use string cells, dates/timestamps use date serials (UTC), and scores use numeric cells with `0.00` formatting. User strings never create spreadsheet formulas or hyperlinks.
+
+Dates before 1900 fall back to ISO text for Excel compatibility. Overlong text cells are capped at 32,767 UTF-16 units including a visible truncation notice and a protected administrator-detail source path; complete original data remains in the database and canonical/legacy award fields are available on the detail page. Non-finite stored numeric values are rejected with the generic export error instead of becoming misleading text cells.
+
+Responses use the XLSX MIME, `no-store`, `nosniff`, a fixed ASCII fallback filename and a UTF-8 filename parameter. Display-name path separators and reserved filename characters become underscores. Attachment cells list original names and the existing protected relative download routes; they never include storage names, disk paths or secrets. Workbook generation failures return `导出失败，请稍后重试` (500) and log only safe route/status/stage information. Empty exports retain both formatted headers, frozen first rows and auto-filters.
+
 ## 6. Authentication and authorization
 
 ### Admin

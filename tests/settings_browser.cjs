@@ -111,6 +111,11 @@ const baseUrl = new Promise((resolve, reject) => {
       assert.equal((await studentContext.request.get(base+attachmentHref)).status(),200);
       await admin.goto(base+"/admin?academic_year_id="+yearId);
       assert((await admin.locator("tbody").innerText()).includes(number));
+      const downloaded = admin.waitForEvent("download");
+      await admin.locator("#export-filtered").click();
+      const exported = await downloaded;
+      assert.equal(exported.suggestedFilename(), "历史学年-"+width+"综测申报汇总.xlsx");
+      await exported.saveAs(path.join(output,width+"-history.xlsx"));
       await admin.getByRole("link",{name:"学年设置",exact:true}).click();
       await admin.locator("#class_access_code").fill("   ");
       response=postResponse("/admin/settings/class-code");

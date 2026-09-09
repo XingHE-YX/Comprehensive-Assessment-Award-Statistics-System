@@ -119,13 +119,15 @@ Task 8 交付：设置与历史数据保留已验证；实际 XLSX 下载依任�
 
 Files: `src/export/*`, `tests/export.rs`, admin export route/templates。
 
-- [ ] 写两张工作表、34 列明细、学生分组和 approved 分值测试。
-- [ ] 实现固定列映射，类别 JSON 展开，附件数量/标识输出。
-- [ ] 设置首行加粗、冻结、筛选、列宽、日期格式和数值格式。
-- [ ] 实现 `/admin/export.xlsx`，支持当前学年和与列表相同的可选筛选。
-- [ ] 运行 `cargo test --test export`。
+- [x] 写两张工作表、34 列明细、学生分组和 approved 分值测试。
+- [x] 实现固定列映射，类别 JSON 展开，附件数量/标识输出。
+- [x] 设置首行加粗、冻结、筛选、列宽、日期格式和数值格式。
+- [x] 实现 `/admin/export.xlsx`，支持当前学年和与列表相同的可选筛选。
+- [x] 运行 `cargo test --test export`。
 
 完成条件：Excel 在 LibreOffice/Excel 中打开无乱码，字段可筛选，空结果也有合法表头。
+
+Task 9 交付：12 项导出集成测试覆盖固定列、七类条件分支、历史筛选、学生汇总、权限与格式；真实浏览器样例和 LibreOffice 往返验证记录见 `docs/testing-export.md`、`progress.txt`。Excel 单元格超长采用明确截断提示及受保护原文入口，1900 年前日期保留 ISO 文本；原始数据不变。
 
 ### Task 10: 安全、日志、部署和备份
 

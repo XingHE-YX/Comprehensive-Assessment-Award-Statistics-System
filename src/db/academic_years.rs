@@ -16,9 +16,11 @@ pub struct NewAcademicYear {
 pub struct AcademicYearRepo;
 
 impl AcademicYearRepo {
-    pub async fn list(pool: &SqlitePool) -> Result<Vec<AcademicYear>, sqlx::Error> {
+    pub async fn list<'e>(
+        executor: impl sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    ) -> Result<Vec<AcademicYear>, sqlx::Error> {
         sqlx::query("SELECT * FROM academic_years ORDER BY start_date DESC, id DESC")
-            .fetch_all(pool)
+            .fetch_all(executor)
             .await?
             .into_iter()
             .map(row_to_academic_year)
