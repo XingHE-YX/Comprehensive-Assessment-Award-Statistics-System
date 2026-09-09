@@ -116,21 +116,21 @@
 - `build_router(state: AppState) -> Router` 注册公共、学生端和管理员端路由。
 - `AppError` 实现 `IntoResponse`，将 403/404/500 映射到中文模板。
 
-- [ ] **Step 1: 定义依赖、配置字段和健康检查测试**
+- [x] **Step 1: 定义依赖、配置字段和健康检查测试**
 
   测试 `GET /healthz` 返回 `200 OK`，配置缺失时 `Config::from_env` 返回可读错误。
 
-- [ ] **Step 2: 运行测试确认骨架尚未完成**
+- [x] **Step 2: 运行测试确认骨架尚未完成**
 
   运行：`cargo test --test health`
 
   预期：因路由和配置实现不存在而失败。
 
-- [ ] **Step 3: 实现配置、共享状态、错误页和基础路由**
+- [x] **Step 3: 实现配置、共享状态、错误页和基础路由**
 
   `main.rs` 初始化 `tracing_subscriber`、SQLite pool、migration，并绑定 `BIND_ADDR`；开发环境允许 HTTP，生产环境由 Caddy 终止 HTTPS。
 
-- [ ] **Step 4: 运行测试并提交**
+- [x] **Step 4: 运行测试并提交**
 
   运行：`cargo test --test health`
 
@@ -438,19 +438,19 @@
 - `scripts/backup.sh`：备份 `/opt/zongce/data/app.db`、`/opt/zongce/uploads` 到 `/opt/zongce/backups`，保留最近至少 7 份数据库备份，并记录失败退出码。
 - Compose 服务：`web`、`caddy`；挂载 `/opt/zongce/data`、`/opt/zongce/uploads`、`/opt/zongce/backups`。
 
-- [ ] **Step 1: 编写安全和部署冒烟检查**
+- [x] **Step 1: 编写安全和部署冒烟检查**
 
   检查 SQL 参数化、模板转义、上传拒绝路径穿越、Cookie 属性、CSRF、管理员路由保护、错误页不泄露 SQL/路径/secret；启动容器后执行学生提交、查询修改、管理员审核和 xlsx 下载冒烟流程。
 
-- [ ] **Step 2: 运行全量测试确认当前缺口**
+- [x] **Step 2: 运行全量测试确认当前缺口**
 
   运行：`cargo test --all-targets`。
 
-- [ ] **Step 3: 实现日志、限速/失败延迟、Docker、Caddy 和备份**
+- [x] **Step 3: 实现日志、限速/失败延迟、Docker、Caddy 和备份**
 
   release 镜像在开发机或 CI 构建；生产环境只运行编译好的镜像；Caddy 将 HTTP 重定向 HTTPS 并反代到 `web:3000`；README 写明初始化、环境变量、迁移、备份恢复和部署步骤。
 
-- [ ] **Step 4: 执行最终验收**
+- [x] **Step 4: 执行最终验收**
 
   运行：`cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-targets && docker compose config`
 
@@ -462,6 +462,8 @@
   ```
 
 ## 开发顺序与交付切片
+
+Task 10 验收及 Task 1 入口补齐已完成，具体证据见 `docs/testing-deployment.md`、`progress.txt`。采用固定失败延迟；没有增加 P1 限速服务。最终 74 项 Rust 测试及 Compose `config --quiet` 通过，真实本地 HTTPS、浏览器、重启持久化和备份恢复均已演练；真实生产域名证书在上线时另行检查。
 
 1. **可运行骨架：** Task 1-3 完成后，应用能启动、执行 migration、验证管理员/班级口令，并安全写入附件。
 2. **学生纵向流程：** Task 4-6 完成后，学生可以从首页进入，提交七类成果或无材料声明，拿到修改码并在允许状态下修改。

@@ -24,12 +24,14 @@
 
 Files: `Cargo.toml`, `src/main.rs`, `src/config.rs`, `src/state.rs`, `src/error.rs`, `templates/layout.html`, `templates/errors/*.html`, `.env.example`, `README.md`, `tests/health.rs`。
 
-- [ ] 写 `GET /healthz` 测试和缺失环境变量测试。
-- [ ] 固定 `TECH_STACK.md` 中的依赖版本，定义 `Config`、`AppState`、`AppError`。
-- [ ] 初始化 tracing、SQLite pool、Askama、路由和 graceful shutdown。
-- [ ] 运行 `cargo test --test health`、`cargo fmt --check`、clippy。
+- [x] 写 `GET /healthz` 测试和缺失环境变量测试。
+- [x] 固定 `TECH_STACK.md` 中的依赖版本，定义 `Config`、`AppState`、`AppError`。
+- [x] 初始化 tracing、SQLite pool、Askama、路由和 graceful shutdown。
+- [x] 运行 `cargo test --test health`、`cargo fmt --check`、clippy。
 
 完成条件：程序可启动，`/healthz` 返回 `ok`，错误页为中文且不泄露内部信息。
+
+Task 1 入口在 Task 10 中基于当前实现补齐；保留旧 scaffold 工作树，未覆盖后续任务的路由或页面。
 
 ### Task 2: Migration 和 repository
 
@@ -133,14 +135,16 @@ Task 9 交付：12 项导出集成测试覆盖固定列、七类条件分支、�
 
 Files: `Dockerfile`, `docker-compose.yml`, `Caddyfile.example`, `scripts/backup.sh`, `tests/security.rs`, `tests/smoke.sh`, `README.md`。
 
-- [ ] 写 cookie、CSRF、日志脱敏、错误页、Compose 挂载和重启持久化检查。
-- [ ] 完成 tracing 事件、登录失败延迟、请求体限制、Caddy HTTP->HTTPS、健康检查。
-- [ ] Compose 只包含 `web` 和 `caddy`；挂载 `/opt/zongce/data`、`/opt/zongce/uploads`、`/opt/zongce/backups`。
-- [ ] `backup.sh` 每日复制 SQLite 和 uploads，数据库备份至少保留 7 份，失败返回非零并记录日志。
-- [ ] 完善 README：本地启动、管理员 hash 生成、初始化、部署、恢复和 cron/systemd timer。
-- [ ] 执行 `cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-targets && docker compose config`。
+- [x] 写 cookie、CSRF、日志脱敏、错误页、Compose 挂载和重启持久化检查。
+- [x] 完成 tracing 事件、登录失败延迟、请求体限制、Caddy HTTP->HTTPS、健康检查。
+- [x] Compose 只包含 `web` 和 `caddy`；挂载 `/opt/zongce/data`、`/opt/zongce/uploads`、`/opt/zongce/backups`。
+- [x] `backup.sh` 每日复制 SQLite 和 uploads，数据库备份至少保留 7 份，失败返回非零并记录日志。
+- [x] 完善 README：本地启动、管理员 hash 生成、初始化、部署、恢复和 cron/systemd timer。
+- [x] 执行 `cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-targets && docker compose config`。
 
 完成条件：开发机完成学生提交、查询修改、管理员审核、Excel 下载；容器重启后数据和附件存在。
+
+Task 10 交付：74 项 Rust 测试、八种备份故障检查、四尺寸真实入口浏览器流程、固定版本 amd64 镜像、Compose 配置、HTTPS 冒烟与脱敏、容器及宿主虚拟机重启、七套备份保留和成套恢复均已验证。Compose 使用 `config --quiet` 避免打印秘密；本地 CA 验证不替代上线后的公网证书检查。完整记录见 `docs/testing-deployment.md`、`progress.txt`。
 
 ## 2. 交付门禁
 
