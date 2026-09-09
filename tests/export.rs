@@ -740,7 +740,13 @@ async fn generation_and_database_errors_return_safe_chinese_responses() {
     login(&f).await;
     let response = f.server.get("/admin/export.xlsx").await;
     assert_eq!(response.status_code(), 500);
-    assert_eq!(response.text(), "导出失败，请稍后重试");
+    assert!(
+        response.headers()["content-type"]
+            .to_str()
+            .unwrap()
+            .starts_with("text/html")
+    );
+    assert!(response.text().contains("导出失败，请稍后重试"));
     assert!(!response.headers().contains_key("content-disposition"));
     sqlx::query("DROP TABLE student_declarations")
         .execute(&f.state.db)
@@ -748,7 +754,13 @@ async fn generation_and_database_errors_return_safe_chinese_responses() {
         .unwrap();
     let response = f.server.get("/admin/export.xlsx").await;
     assert_eq!(response.status_code(), 500);
-    assert_eq!(response.text(), "数据库操作失败");
+    assert!(
+        response.headers()["content-type"]
+            .to_str()
+            .unwrap()
+            .starts_with("text/html")
+    );
+    assert!(response.text().contains("服务暂时不可用"));
 }
 
 #[tokio::test]

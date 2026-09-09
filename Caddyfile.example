@@ -1,0 +1,20 @@
+{
+    # Application logs contain audited fields. Do not enable access logs that
+    # include raw URLs, query strings, cookies or submitted credentials.
+    log default {
+        level ERROR
+        format filter {
+            wrap json
+            fields {
+                request delete
+                err_trace delete
+            }
+        }
+    }
+}
+
+{$DOMAIN} {
+    # A bare public domain enables automatic certificates and HTTP -> HTTPS.
+    reverse_proxy web:3000
+    header Strict-Transport-Security "max-age=31536000"
+}

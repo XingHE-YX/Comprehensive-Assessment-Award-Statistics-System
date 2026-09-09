@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+.worktrees
+.superpowers
+target
+data
+uploads
+backups
+tests
+docs
+examples
+*.log

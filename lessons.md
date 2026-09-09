@@ -63,6 +63,14 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - A multi-file documentation patch failed context verification because its task-section hunks were out of source order. Read the current task block, apply ordered contextual hunks and check the diff; never broadly replace repeated Step labels across tasks.
 - LibreOffice headless emitted host Fontconfig cache-directory warnings but returned zero and re-saved all sample workbooks. Inspect the converted ZIP/XML and cell values before classifying tool warnings as workbook failures; the checked files preserved Chinese text, numeric types, filters and frozen panes.
 
+## 2026-09-10 — Task 10
+
+- Request-limit regression: stacking Tower's RequestBodyLimit around Axum's DefaultBodyLimit made a genuinely oversized multipart body surface as 400 because the nested stream error was no longer classified as 413. Keep the declared Content-Length precheck separate and let DefaultBodyLimit bound actual Form/Multipart reads; preserve FormRejection/MultipartError status when converting to AppError. Test both bodies without a length header and declared oversized uploads.
+- A per-thread tracing subscriber in one concurrently executed integration test intermittently missed request span fields even though a single-test run passed. Use one capture subscriber for that integration-test process and random per-request sentinels; assert generated request ids and matched route templates while checking no sentinel, CSRF or raw query values reach output. Production filtering must also exclude dependency targets, not merely sanitize the application's own request span.
+- Existing administrator/export tests asserted complete plain-text error bodies. Moving to the specified Chinese HTML pages intentionally changes those bytes; preserve their status/business assertions and upgrade the tests to assert HTML Content-Type, the safe public message and absence of internal values.
+- Compose interpolation can treat `$` characters in PHC hashes as variables. Keep private values in an env_file with `format: raw` (Compose 2.35.1), without surrounding quotes; keep only public DOMAIN/image settings in the separate interpolation `.env`. `docker compose config --quiet` validates without printing credentials.
+- SQLite WAL data is not necessarily in the main database file. A live WAL fixture reproduced why plain copying app.db is insufficient. The backup script pauses application writes, uses SQLite .backup, copies matching uploads, checks integrity and only then publishes/rotates complete snapshots. Its failure cleanup must restart a service that was running before the backup.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

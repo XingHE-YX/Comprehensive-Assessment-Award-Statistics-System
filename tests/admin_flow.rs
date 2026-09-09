@@ -617,7 +617,13 @@ async fn malformed_admin_requests_return_safe_chinese_errors() {
         .json(&json!({"username":"test-admin"}))
         .await;
     assert_eq!(response.status_code(), 400);
-    assert_eq!(response.text(), "请求无效");
+    assert!(
+        response.headers()["content-type"]
+            .to_str()
+            .unwrap()
+            .starts_with("text/html")
+    );
+    assert!(response.text().contains("请求无效"));
     login(&f).await;
     for path in [
         "/admin/submissions/not-a-number",
@@ -625,7 +631,14 @@ async fn malformed_admin_requests_return_safe_chinese_errors() {
     ] {
         let response = f.server.get(path).await;
         assert_eq!(response.status_code(), 400);
-        assert_eq!(response.text(), "请求无效");
+        assert!(
+            response.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .starts_with("text/html")
+        );
+        assert!(response.text().contains("请求无效"));
+        assert!(!response.text().contains("not-a-number"));
     }
     for path in ["/admin/logout", "/admin/submissions/1/review"] {
         let response = f
@@ -634,7 +647,13 @@ async fn malformed_admin_requests_return_safe_chinese_errors() {
             .json(&json!({"status":"approved"}))
             .await;
         assert_eq!(response.status_code(), 400);
-        assert_eq!(response.text(), "请求无效");
+        assert!(
+            response.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .starts_with("text/html")
+        );
+        assert!(response.text().contains("请求无效"));
     }
 }
 

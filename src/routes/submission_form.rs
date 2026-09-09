@@ -16,11 +16,7 @@ pub(super) async fn parse_multipart(
 ) -> Result<(BTreeMap<String, String>, Vec<UploadInput>, String), AppError> {
     let mut values = BTreeMap::new();
     let mut uploads = Vec::new();
-    while let Some(mut field) = multipart
-        .next_field()
-        .await
-        .map_err(|_| AppError::Multipart)?
-    {
+    while let Some(mut field) = multipart.next_field().await.map_err(AppError::from)? {
         let name = field.name().unwrap_or_default().to_owned();
         if let Some(original_name) = field.file_name().map(str::to_owned) {
             let mime_type = field
@@ -28,7 +24,7 @@ pub(super) async fn parse_multipart(
                 .unwrap_or("application/octet-stream")
                 .to_owned();
             let mut bytes = Vec::new();
-            while let Some(chunk) = field.chunk().await.map_err(|_| AppError::Multipart)? {
+            while let Some(chunk) = field.chunk().await.map_err(AppError::from)? {
                 if bytes.len().saturating_add(chunk.len()) as u64 > MAX_ATTACHMENT_BYTES {
                     return Err(StorageError::InvalidSize.into());
                 }
@@ -43,7 +39,7 @@ pub(super) async fn parse_multipart(
             }
             uploads.push(UploadInput::new(original_name, mime_type, bytes));
         } else {
-            values.insert(name, field.text().await.map_err(|_| AppError::Multipart)?);
+            values.insert(name, field.text().await.map_err(AppError::from)?);
         }
     }
     let csrf = values.get("csrf_token").cloned().unwrap_or_default();

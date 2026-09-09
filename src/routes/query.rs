@@ -56,7 +56,8 @@ pub async fn query_post(
             Ok(Redirect::to(&format!("/query/{}", submission.submission_no)).into_response())
         }
         Err(AuthError::InvalidCredentials) => {
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            tracing::info!(event = "query_access_failed", status = 401);
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             let html = views::query(
                 generate_csrf_token(&session).await?,
                 submission_no.to_owned(),

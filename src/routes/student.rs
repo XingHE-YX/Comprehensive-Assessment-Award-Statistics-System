@@ -64,7 +64,8 @@ pub async fn access(
         .as_deref()
         .is_some_and(|value| crate::auth::verify_secret(value, code));
     if !valid {
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tracing::info!(event = "class_access_failed", status = 400);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         let csrf_token = generate_csrf_token(&session).await?;
         let class_name = SettingsRepo::get(&state.db, "class_name")
             .await?
@@ -202,6 +203,7 @@ pub async fn submit_post(
     {
         Ok(stored) => stored,
         Err(error) => {
+            tracing::warn!(event = "upload_failed", status = "rejected");
             let _ = transaction.rollback().await;
             return Err(AppError::Storage(error));
         }

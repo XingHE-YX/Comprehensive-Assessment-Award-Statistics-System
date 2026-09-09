@@ -146,7 +146,7 @@ pub async fn review(
     form: Result<Form<ReviewForm>, FormRejection>,
 ) -> Result<Response, AppError> {
     let Path(id) = id.map_err(|_| AppError::BadRequest)?;
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     if !auth::verify_csrf_token(&session, &form.csrf_token).await? {
         return Err(AppError::BadRequest);
     }

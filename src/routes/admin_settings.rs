@@ -146,7 +146,7 @@ pub async fn create(
     session: Session,
     form: Result<Form<YearForm>, FormRejection>,
 ) -> Result<Response, AppError> {
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     save(&state, &session, None, form).await
 }
 
@@ -157,7 +157,7 @@ pub async fn update(
     form: Result<Form<YearForm>, FormRejection>,
 ) -> Result<Response, AppError> {
     let Path(id) = id.map_err(|_| AppError::BadRequest)?;
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     save(&state, &session, Some(id), form).await
 }
 
@@ -199,7 +199,7 @@ pub async fn activate(
     form: Result<Form<CsrfForm>, FormRejection>,
 ) -> Result<Response, AppError> {
     let Path(id) = id.map_err(|_| AppError::BadRequest)?;
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     check_csrf(&session, &form.csrf_token).await?;
     match settings::activate_year(&state.db, id).await {
         Ok(()) => Ok(Redirect::to("/admin/settings?saved=active").into_response()),
@@ -212,7 +212,7 @@ pub async fn class_code(
     session: Session,
     form: Result<Form<ClassCodeForm>, FormRejection>,
 ) -> Result<Response, AppError> {
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     check_csrf(&session, &form.csrf_token).await?;
     match settings::replace_class_code(&state.db, form.class_access_code).await {
         Ok(()) => Ok(Redirect::to("/admin/settings?saved=code").into_response()),

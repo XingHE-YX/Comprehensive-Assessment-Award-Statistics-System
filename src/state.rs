@@ -1,7 +1,7 @@
 use std::{str::FromStr, time::Duration};
 
 use sqlx::{
-    SqlitePool,
+    ConnectOptions, SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
 };
 
@@ -20,13 +20,15 @@ impl AppState {
             .create_if_missing(true)
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
-            .busy_timeout(Duration::from_secs(5));
+            .busy_timeout(Duration::from_secs(5))
+            .disable_statement_logging();
         let db = SqlitePoolOptions::new()
             .max_connections(5)
             .connect_with(options)
             .await?;
         migrate(&db).await.map_err(sqlx::Error::protocol)?;
         seed_default_academic_year(&db).await?;
+        tracing::info!(event = "migration", status = "complete");
         Ok(Self {
             db,
             storage: AttachmentStorage::new("uploads"),

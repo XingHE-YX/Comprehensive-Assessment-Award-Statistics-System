@@ -5,6 +5,7 @@ mod admin_settings;
 mod admin_submissions;
 mod fields;
 mod query;
+mod security;
 mod student;
 mod submission_form;
 mod views;
@@ -78,6 +79,7 @@ fn router(
             get(admin_auth::login_get).post(admin_auth::login_post),
         )
         .route("/", get(student::home))
+        .route("/healthz", get(security::health))
         .route("/access", axum::routing::post(student::access))
         .route(
             "/submit",
@@ -104,8 +106,14 @@ fn router(
             },
         ))
         .nest_service("/static", ServeDir::new("static"))
+        .fallback(|| async { crate::error::AppError::NotFound })
         .layer(DefaultBodyLimit::max(max_body_bytes))
         .layer(axum::Extension(credentials))
         .layer(session_layer)
+        .layer(axum::middleware::from_fn_with_state(
+            max_body_bytes,
+            security::enforce_declared_limit,
+        ))
+        .layer(axum::middleware::from_fn(security::observe))
         .with_state(state)
 }

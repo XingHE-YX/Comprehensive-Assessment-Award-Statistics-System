@@ -87,7 +87,11 @@ DATABASE_URL=sqlite:/data/app.db
 UPLOAD_DIR=/uploads
 ```
 
-Optional: `RUST_LOG` (default `info`), `COOKIE_SECURE` (default true in production), `MAX_BODY_BYTES` (default 115343360 for ten 10 MiB files plus form overhead).
+Optional: `RUST_LOG` (default `info`; only a level is accepted and dependency logs remain disabled), `COOKIE_SECURE` (default true in production; false is rejected in production), `MAX_BODY_BYTES` (positive, default 115343360 for ten 10 MiB files plus form overhead). Standard padded Base64 is required for `SESSION_SECRET`; malformed trailing content is rejected. Config values and error sources never appear in logs.
+
+The production binary reads dotenv configuration, migrates/seeds SQLite, uses the configured upload directory and serves the existing router until graceful SIGINT/SIGTERM shutdown. `--hash-secret` reads one secret line from stdin and prints an Argon2id PHC without requiring runtime configuration. `GET /healthz` returns `ok` only while the database readiness query succeeds.
+
+Deployment uses `.env.production` with Compose `env_file.format: raw` so PHC `$` characters are literal (values must not be quoted). A separate `.env` contains only DOMAIN and optional ZONGCE_IMAGE interpolation values; Caddy receives no application credentials. The runtime image runs as UID/GID 10001; mandatory host mounts are `/opt/zongce/data`, `/opt/zongce/uploads`, `/opt/zongce/backups`. See README for release build, daily cold snapshots and full restore procedures.
 
 ## Commands
 

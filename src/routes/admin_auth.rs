@@ -75,7 +75,7 @@ pub async fn login_post(
     session: Session,
     form: Result<Form<LoginForm>, FormRejection>,
 ) -> Result<Response, AppError> {
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     if !auth::verify_csrf_token(&session, &form.csrf_token).await? {
         return Err(AppError::BadRequest);
     }
@@ -85,10 +85,12 @@ pub async fn login_post(
         None => false,
     };
     if !valid {
+        tracing::info!(event = "admin_login_failed", status = 401);
         tokio::time::sleep(Duration::from_millis(100)).await;
         return render_login(&session, username, true).await;
     }
     auth::establish_admin_session(&session).await?;
+    tracing::info!(event = "admin_login_succeeded", status = 303);
     Ok(Redirect::to("/admin").into_response())
 }
 
@@ -96,7 +98,7 @@ pub async fn logout(
     session: Session,
     form: Result<Form<LogoutForm>, FormRejection>,
 ) -> Result<Response, AppError> {
-    let Form(form) = form.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
     if !auth::verify_csrf_token(&session, &form.csrf_token).await? {
         return Err(AppError::BadRequest);
     }

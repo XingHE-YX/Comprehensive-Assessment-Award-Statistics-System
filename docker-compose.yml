@@ -1,0 +1,57 @@
+services:
+  web:
+    image: ${ZONGCE_IMAGE:-zongce-web:1.0.0}
+    platform: linux/amd64
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env.production
+        format: raw
+    environment:
+      APP_ENV: production
+      BIND_ADDR: 0.0.0.0:3000
+      DATABASE_URL: sqlite:/data/app.db
+      UPLOAD_DIR: /uploads
+      COOKIE_SECURE: "true"
+    volumes:
+      - /opt/zongce/data:/data
+      - /opt/zongce/uploads:/uploads
+      - /opt/zongce/backups:/backups:ro
+    expose:
+      - "3000"
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  caddy:
+    image: caddy:2.9.1
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN to the public hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  caddy_data:
+  caddy_config:

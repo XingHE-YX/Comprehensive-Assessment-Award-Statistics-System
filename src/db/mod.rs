@@ -12,6 +12,13 @@ pub use declarations::DeclarationRepo;
 pub use settings::SettingsRepo;
 pub use submissions::{NewSubmission, SubmissionFilter, SubmissionRepo};
 
+pub async fn readiness(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    sqlx::query_scalar::<_, i64>("SELECT 1")
+        .fetch_one(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!("./migrations").run(pool).await
 }

@@ -1,0 +1,3 @@
+{% extends "layout.html" %}
+{% block title %}{{ status }} · 综测成果申报{% endblock %}
+{% block main %}<main class="container student-shell"><h1>{{ status }}</h1><div class="notice notice-error" role="alert">{{ message }}</div><p><a class="button button-secondary" href="/">返回首页</a> <a href="/query">查询/修改</a></p></main>{% endblock %}

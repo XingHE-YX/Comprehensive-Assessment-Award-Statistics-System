@@ -1,3 +1,9 @@
 /target
 .DS_Store
 .worktrees/
+.env
+.env.*
+!.env.example
+/data/
+/uploads/
+/backups/
