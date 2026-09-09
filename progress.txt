@@ -12,6 +12,7 @@ Current status:
 - Task 3 is complete: Argon2id secret helpers, random edit/submission identifiers, scoped sessions with expiry, CSRF helpers, secure private cookies, protected attachment storage, path/type/size/count validation, and cleanup on batch failure are implemented.
 - Task 4 is complete: the seven category schemas, shared submission/declaration/score/deadline validation, attachment validation integration, category JSON keys, and validation tests are implemented.
 - Task 5 is complete: student home/access/session flow, multipart submission, no-material declarations, transactional submission/attachment persistence, receipt page, seven category form sections, responsive student UI, and submission-flow integration tests are implemented.
+- Task 6 is complete: query credentials, single-submission verified sessions, detail/edit pages, atomic student updates, existing/new attachment limits, protected attachment responses, shared forms, and browser regression coverage are implemented.
 
 Completed documents:
 - PRD.md
@@ -23,7 +24,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Task 6: implement query, edit, and protected attachment access. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work.
+- Task 7: implement administrator login, review, filtering and dashboard. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work; an existing task1-scaffold worktree was preserved.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -53,4 +54,11 @@ Notes:
 - Empty required directories contain .gitkeep so the project structure survives Git checkout.
 - The GitHub remote is `https://github.com/XingHE-YX/Comprehensive-Assessment-Award-Statistics-System.git`.
 - Task 5 uses a public `routes::build_router` with a development session key for integration tests; production startup still needs to supply the configured session secret when Task 1 startup wiring is completed.
-- Notes: 手机/桌面浏览器实测尚未进行；正式启动仍受 Task 1 未接线影响。
+- The previous session left no Task 6 changes on disk. This session resumed from clean main at 5c1832f, reproduced the missing /query route as 404, and implemented Task 6.
+- Task 6 follows PRD section 6: the deadline restricts new submissions; pending/needs_revision updates use their original academic year even after deadline/deactivation. APP_FLOW.md and BACKEND_STRUCTURE.md now spell out this interpretation.
+- Task 6 verification: query_flow has 12 passing tests, auth has 4 passing tests, including expiry/replacement of verified scope; the full Rust suite has 33 tests. cargo fmt --check and strict Clippy pass.
+- Browser verification passed using Playwright 1.52.0 with installed Chrome at 320x568, 390x844, 768x1024 and 1440x900. Covered submit, receipt, query, prefilled edit without new files, protected download, no-material declaration, all seven categories, both article branches and all certificate branches. Desktop/mobile screenshots were inspected and no horizontal overflow or overlap was found.
+- Read-only code review identified two regressions, both reproduced and fixed: blank optional sports choice and repeated Edit clicks after collapsing the editor.
+- Browser test dependencies are installed outside the repository. Re-run instructions are in docs/testing-student-flow.md.
+- docker compose config could not run: Docker is not installed on this machine, and Compose files remain part of Task 10. This is not a completed deployment verification.
+- A temporary local preview is available through cargo run --example student_preview, using an isolated in-memory database and temporary uploads. It does not wire the production main entry point.

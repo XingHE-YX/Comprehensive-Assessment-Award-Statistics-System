@@ -12,6 +12,10 @@ pub enum SubmissionStatus {
 }
 
 impl SubmissionStatus {
+    pub const fn can_student_edit(self) -> bool {
+        matches!(self, Self::Pending | Self::NeedsRevision)
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",

@@ -61,12 +61,15 @@ pub fn validate_upload(file: &UploadInput) -> Result<ValidatedUpload, Validation
     }
 }
 
-pub fn validate_uploads(uploads: &[UploadInput]) -> Result<Vec<ValidatedUpload>, ValidationErrors> {
+pub fn validate_uploads_with_existing(
+    uploads: &[UploadInput],
+    existing_count: usize,
+) -> Result<Vec<ValidatedUpload>, ValidationErrors> {
     let mut errors = ValidationErrors::new();
-    if uploads.is_empty() {
+    if uploads.is_empty() && existing_count == 0 {
         errors.add("attachments", "成果申报至少需要上传 1 个证明材料");
     }
-    if uploads.len() > MAX_ATTACHMENTS_PER_SUBMISSION {
+    if uploads.len().saturating_add(existing_count) > MAX_ATTACHMENTS_PER_SUBMISSION {
         errors.add("attachments", "每项成果最多上传 10 个证明材料");
     }
 

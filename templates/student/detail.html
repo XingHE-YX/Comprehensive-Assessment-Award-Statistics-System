@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}申报详情{% endblock %}
+{% block main %}
+<main class="container student-shell">
+  <p class="context-line">{{ year.name }} · <span class="submission-number">{{ submission.submission_no }}</span></p>
+  <h1>申报详情</h1>
+  <div class="detail-status"><span class="status-badge status-{{ submission.status.as_str() }}">{{ submission.status.label() }}</span>{% if submission.status.can_student_edit() %}<a class="button button-primary" href="#edit-submission">编辑申报</a>{% endif %}</div>
+  {% if submission.student_modified_after_review %}<p class="notice notice-neutral">已重新提交审核。</p>{% endif %}
+  {% if !submission.status.can_student_edit() %}<p class="notice notice-neutral">此申报已完成审核，仅可查看。</p>{% endif %}
+  {% match submission.review_note %}{% when Some with (note) %}<section class="review-note"><h2>审核备注</h2><p class="user-text">{{ note }}</p></section>{% when None %}{% endmatch %}
+  <dl class="meta-list detail-list">
+    <div><dt>核定分值</dt><dd>{% match submission.approved_score %}{% when Some with (score) %}{{ score }}{% when None %}尚未核定{% endmatch %}</dd></div>
+    <div><dt>姓名</dt><dd>{{ submission.student_name }}</dd></div><div><dt>学号</dt><dd>{{ submission.student_no }}</dd></div>
+    <div><dt>成果名称</dt><dd>{{ submission.result_name }}</dd></div><div><dt>取得日期</dt><dd>{{ submission.obtained_date }}</dd></div>
+    <div><dt>成果类别</dt><dd>{{ submission.category.label() }}</dd></div>
+    {% for (label, value) in category_fields %}<div><dt>{{ label }}</dt><dd class="user-text">{{ value }}</dd></div>{% endfor %}
+    <div><dt>详细说明</dt><dd class="user-text">{% match submission.detail %}{% when Some with (value) %}{{ value }}{% when None %}未填写{% endmatch %}</dd></div>
+    <div><dt>备注</dt><dd class="user-text">{% match submission.remark %}{% when Some with (value) %}{{ value }}{% when None %}未填写{% endmatch %}</dd></div>
+    <div><dt>提交时间</dt><dd><time datetime="{{ submission.created_at.to_rfc3339() }}">{{ submission.created_at.format("%Y-%m-%d %H:%M UTC") }}</time></dd></div>
+    <div><dt>更新时间</dt><dd><time datetime="{{ submission.updated_at.to_rfc3339() }}">{{ submission.updated_at.format("%Y-%m-%d %H:%M UTC") }}</time></dd></div>
+  </dl>
+  <section class="detail-section"><h2>证明材料</h2><ul class="attachment-list">{% for attachment in attachments %}<li><a href="/submissions/{{ submission.submission_no }}/attachments/{{ attachment.id }}" target="_blank" rel="noopener">{{ attachment.original_name }}</a><span class="helper">{{ attachment.file_size }} 字节</span></li>{% endfor %}</ul></section>
+  {% if submission.status.can_student_edit() %}
+  <details id="edit-submission" class="detail-section" {% if form.has_errors() %}open{% endif %}><summary>修改申报内容</summary>{% include "student/form.html" %}</details>
+  {% else %}<input type="hidden" name="csrf_token" value="{{ form.csrf_token }}">{% endif %}
+  <p><a href="/query">查询其他申报</a></p>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/submission-form.js" defer></script>{% endblock %}

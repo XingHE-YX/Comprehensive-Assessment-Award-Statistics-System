@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
 use axum::{
     Form,
@@ -6,8 +6,7 @@ use axum::{
     http::StatusCode,
     response::{Html, IntoResponse, Redirect, Response},
 };
-use chrono::{NaiveDate, Utc};
-use serde_json::{Map, Value};
+use chrono::Utc;
 use tower_sessions::Session;
 
 use crate::{
@@ -16,13 +15,14 @@ use crate::{
         receipt_edit_code, receipt_submission_no, student_year_id, verify_csrf_token,
     },
     db::{AcademicYearRepo, DeclarationRepo, SettingsRepo, SubmissionRepo},
-    domain::{Category, SubmissionStatus},
+    domain::SubmissionStatus,
     error::AppError,
     state::AppState,
     storage::UploadInput,
-    validation::{SubmissionInput, ValidationErrors, validate_declaration, validate_submission},
+    validation::{ValidationErrors, validate_declaration, validate_submission},
 };
 
+use super::submission_form::{parse_multipart, submission_input};
 use super::views;
 
 pub async fn home(State(state): State<AppState>, session: Session) -> Result<Response, AppError> {
@@ -168,56 +168,9 @@ pub async fn submit_post(
         return Ok(Redirect::to("/success/declaration").into_response());
     }
 
-    let category = match values
-        .get("category")
-        .and_then(|value| Category::from_str(value).ok())
-    {
-        Some(category) => category,
-        None => {
-            let mut errors = ValidationErrors::new();
-            errors.add("category", "成果类别为必填项");
-            return render_submit_error(&session, year, values, errors).await;
-        }
-    };
-    let obtained_date = match values
-        .get("obtained_date")
-        .and_then(|value| NaiveDate::parse_from_str(value, "%Y-%m-%d").ok())
-    {
-        Some(value) => value,
-        None => {
-            let mut errors = ValidationErrors::new();
-            errors.add("obtained_date", "取得日期格式无效");
-            return render_submit_error(&session, year, values, errors).await;
-        }
-    };
-    let category_data = values
-        .iter()
-        .filter(|(key, _)| {
-            !matches!(
-                key.as_str(),
-                "csrf_token"
-                    | "has_result"
-                    | "student_name"
-                    | "student_no"
-                    | "result_name"
-                    | "obtained_date"
-                    | "category"
-                    | "detail"
-                    | "remark"
-                    | "no_result_confirm"
-            )
-        })
-        .map(|(key, value)| (key.clone(), Value::String(value.clone())))
-        .collect::<Map<String, Value>>();
-    let submission_input = SubmissionInput {
-        student_name: values.get("student_name").cloned().unwrap_or_default(),
-        student_no: values.get("student_no").cloned().unwrap_or_default(),
-        result_name: values.get("result_name").cloned().unwrap_or_default(),
-        obtained_date,
-        detail: optional_value(&values, "detail"),
-        remark: optional_value(&values, "remark"),
-        category,
-        category_data: Value::Object(category_data),
+    let submission_input = match submission_input(&values) {
+        Ok(input) => input,
+        Err(errors) => return render_submit_error(&session, year, values, errors).await,
     };
     let validated = match validate_submission(submission_input, &year, &uploads) {
         Ok(value) => value,
@@ -359,42 +312,4 @@ async fn render_submit_error(
     let csrf_token = generate_csrf_token(session).await?;
     let html = views::submit(year, csrf_token, values, errors).map_err(|_| AppError::Template)?;
     Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(html)).into_response())
-}
-
-async fn parse_multipart(
-    multipart: &mut Multipart,
-) -> Result<(BTreeMap<String, String>, Vec<UploadInput>, String), AppError> {
-    let mut values = BTreeMap::new();
-    let mut uploads = Vec::new();
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|_| AppError::Multipart)?
-    {
-        let name = field.name().unwrap_or_default().to_owned();
-        if field.file_name().is_some() {
-            let original_name = field.file_name().unwrap_or_default().to_owned();
-            let mime_type = field
-                .content_type()
-                .unwrap_or("application/octet-stream")
-                .to_owned();
-            let bytes = field
-                .bytes()
-                .await
-                .map_err(|_| AppError::Multipart)?
-                .to_vec();
-            uploads.push(UploadInput::new(original_name, mime_type, bytes));
-        } else {
-            values.insert(name, field.text().await.map_err(|_| AppError::Multipart)?);
-        }
-    }
-    let csrf_token = values.get("csrf_token").cloned().unwrap_or_default();
-    Ok((values, uploads, csrf_token))
-}
-
-fn optional_value(values: &BTreeMap<String, String>, key: &str) -> Option<String> {
-    values
-        .get(key)
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }

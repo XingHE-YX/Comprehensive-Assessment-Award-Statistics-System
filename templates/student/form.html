@@ -1,0 +1,66 @@
+{% macro error(key, id) %}
+{% match form.errors.first(key) %}{% when Some with (message) %}<p id="{{ id }}-error" class="field-error">{{ message }}</p>{% when None %}{% endmatch %}
+{% endmacro %}
+{% macro text_field(key, label, kind, limit) %}
+<div class="field"><label for="{{ key }}">{{ label }}<span class="required">*</span></label>
+<input id="{{ key }}" name="{{ key }}" type="{{ kind }}" value="{{ form.value(key) }}" maxlength="{{ limit }}" required {% if form.errors.contains_key(key) %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}>
+{% call error(key, key) %}</div>
+{% endmacro %}
+{% if form.has_errors() %}
+<div class="notice notice-error error-summary" role="alert"><strong>请检查以下内容</strong><ul>{% for (_, messages) in form.errors.fields %}{% for message in messages %}<li>{{ message }}</li>{% endfor %}{% endfor %}</ul></div>
+{% endif %}
+<form id="submission-form" method="post" action="{{ form.action }}" enctype="multipart/form-data" class="stack-form submission-form" data-editing="{{ form.editing }}">
+  <input type="hidden" name="csrf_token" value="{{ form.csrf_token }}">
+  <fieldset class="form-section"><legend>学生信息</legend><div class="field-grid">
+    {% call text_field("student_name", "姓名", "text", 50) %}
+    {% call text_field("student_no", "学号", "text", 30) %}
+  </div></fieldset>
+  {% if !form.editing %}
+  <fieldset class="form-section"><legend>申报选择</legend>
+    <div class="choice-group"><label class="choice"><input type="radio" name="has_result" value="yes" {% if form.checked("has_result", "yes") %}checked{% endif %}>有成果，填写成果信息</label><label class="choice"><input type="radio" name="has_result" value="no" {% if form.checked("has_result", "no") %}checked{% endif %}>本学年无成果，提交声明</label></div>
+    <div id="declaration-confirm" class="notice notice-neutral" {% if !form.selected("has_result", "no") %}hidden{% endif %}><label class="choice"><input id="no-result-confirm" name="no_result_confirm" value="yes" type="checkbox" {% if form.selected("no_result_confirm", "yes") %}checked{% endif %}>我确认本学年暂无成果材料。</label></div>
+  </fieldset>
+  {% endif %}
+  <div data-result-fields>
+    <fieldset class="form-section"><legend>成果信息</legend>
+      {% call text_field("result_name", "成果名称", "text", 200) %}
+      <div class="field-grid">
+        {% call text_field("obtained_date", "取得日期", "date", 10) %}
+        <div class="field"><label for="category">成果类别<span class="required">*</span></label>
+          <select id="category" name="category" required {% if form.errors.contains_key("category") %}aria-invalid="true" aria-describedby="category-error"{% endif %}>
+            <option value="">请选择类别</option>
+            {% for section in form.category_sections() %}<option value="{{ section.category.as_str() }}" {% if form.selected("category", section.category.as_str()) %}selected{% endif %}>{{ section.category.label() }}</option>{% endfor %}
+          </select>{% call error("category", "category") %}
+        </div>
+      </div>
+      <div class="field"><label for="detail">详细说明</label><textarea id="detail" name="detail" maxlength="4000" rows="4" {% if form.errors.contains_key("detail") %}aria-invalid="true" aria-describedby="detail-error"{% endif %}>{{ form.value("detail") }}</textarea>{% call error("detail", "detail") %}</div>
+      <div class="field"><label for="remark">备注</label><textarea id="remark" name="remark" maxlength="4000" rows="3" {% if form.errors.contains_key("remark") %}aria-invalid="true" aria-describedby="remark-error"{% endif %}>{{ form.value("remark") }}</textarea>{% call error("remark", "remark") %}</div>
+    </fieldset>
+    {% for section in form.category_sections() %}
+    <fieldset class="form-section category-fields" data-category-section="{{ section.category.as_str() }}" {% if !form.selected("category", section.category.as_str()) %}hidden disabled{% endif %}>
+      <legend>{{ section.category.label() }}</legend>
+      {% for field in section.fields %}
+      {% let id = format!("{}-{}", section.category.as_str(), field.key) %}
+      <div class="field" data-condition-key="{{ field.when_key }}" data-condition-value="{{ field.when_value }}" {% if !form.active_field(section.category.as_str(), field) %}hidden{% endif %}>
+        <label for="{{ id }}">{{ field.label }}{% if field.required %}<span class="required">*</span>{% endif %}</label>
+        {% if field.options.is_empty() %}
+        <input id="{{ id }}" name="{{ field.key }}" value="{{ form.value(field.key) }}" data-required="{{ field.required }}" {% if form.active_field(section.category.as_str(), field) %}{% if field.required %}required{% endif %}{% else %}disabled{% endif %} {% if form.errors.contains_key(field.key) %}aria-invalid="true" aria-describedby="{{ id }}-error"{% endif %}>
+        {% else %}
+        <select id="{{ id }}" name="{{ field.key }}" data-required="{{ field.required }}" {% if form.active_field(section.category.as_str(), field) %}{% if field.required %}required{% endif %}{% else %}disabled{% endif %} {% if form.errors.contains_key(field.key) %}aria-invalid="true" aria-describedby="{{ id }}-error"{% endif %}>
+          <option value="">请选择</option>{% for (value, label) in field.options %}<option value="{{ value }}" {% if form.selected(field.key, value) %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% call error(field.key, id) %}
+      </div>
+      {% endfor %}
+      {% if section.category.as_str() == "other_award" %}<p class="helper">奖学金性质成果需由管理员人工确认。</p>{% endif %}
+    </fieldset>
+    {% endfor %}
+    <fieldset class="form-section"><legend>证明材料</legend><div class="field">
+      <label for="attachments">{% if form.editing %}补充证明材料{% else %}上传证明材料<span class="required">*</span>{% endif %}</label>
+      <input id="attachments" name="attachments" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple {% if !form.editing %}required{% endif %} aria-describedby="attachments-help{% if form.errors.contains_key("attachments") %} attachments-error{% endif %}" {% if form.errors.contains_key("attachments") %}aria-invalid="true"{% endif %}>
+      <p id="attachments-help" class="helper">支持 JPG、PNG、PDF；单个文件不超过 10 MiB，合计 1-10 个文件。{% if form.editing %}已有材料会保留，无需重复上传。{% endif %}</p>{% call error("attachments", "attachments") %}
+    </div></fieldset>
+  </div>
+  <div class="form-actions"><button class="button button-primary" type="submit">{% if form.editing %}保存并重新提交{% else %}提交申报{% endif %}</button><a class="button button-secondary" href="{% if form.editing %}{{ form.action.trim_end_matches("/update") }}{% else %}/{% endif %}">{% if form.editing %}取消编辑{% else %}返回首页{% endif %}</a></div>
+</form>

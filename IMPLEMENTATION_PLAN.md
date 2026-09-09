@@ -83,10 +83,10 @@ Files: `src/routes/student.rs`, `templates/student/{home,submit,success}.html`, 
 
 Files: `src/routes/query.rs`, `templates/student/{query,detail}.html`, `tests/query_flow.rs`。
 
-- [ ] 写错误修改码、session 越权、四种状态编辑权限、修改回 pending 和附件权限测试。
-- [ ] 实现 `/query`、`/query/:submission_no`、更新 POST 和保护附件 GET。
-- [ ] 更新时复用 Task 4 校验；保留审核备注，设置 `student_modified_after_review`。
-- [ ] 运行 `cargo test --test query_flow`。
+- [x] 写错误修改码、session 越权、四种状态编辑权限、修改回 pending 和附件权限测试。
+- [x] 实现 `/query`、`/query/:submission_no`、更新 POST 和保护附件 GET。
+- [x] 更新时复用 Task 4 校验；保留审核备注，设置 `student_modified_after_review`。
+- [x] 运行 `cargo test --test query_flow`。
 
 完成条件：学生只能访问自己的单条申报；已通过和不予认定只读。
 

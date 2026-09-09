@@ -22,6 +22,7 @@ src/error.rs                AppError and public error responses
 src/state.rs                AppState
 src/domain/*                typed business values and serde category models
 src/validation/*            server-side validation only
+src/services/*              coordinate validation, repository transactions, and storage cleanup
 src/auth/*                  Argon2id, codes, sessions, CSRF
 src/db/*                    SQLx repositories and transactions
 src/storage/*               safe paths and streamed file IO
@@ -172,6 +173,8 @@ Every state-changing form receives a per-session random CSRF token. The token is
 ## 7. Validation and storage rules
 
 Validation is shared by create and update paths. Date, category, conditional fields, attachment count/size/type, score, and text lengths are checked server-side. Uploads stream to a temporary file, validate byte count and declared/guessed MIME, then atomically move to the year/submission directory with a random filename. Static file serving never mounts `UPLOAD_DIR`.
+
+Student updates validate dates against the record's original academic year. Following PRD section 6, the deadline applies to new submissions only. Existing attachments count toward the 1-10 limit and do not need to be re-uploaded. Student update transactions condition their first write on editable status, then recount attachments before saving additional files. Private student HTML and attachment responses use `Cache-Control: no-store`; attachments also use `X-Content-Type-Options: nosniff`.
 
 ## 8. Error and logging contract
 

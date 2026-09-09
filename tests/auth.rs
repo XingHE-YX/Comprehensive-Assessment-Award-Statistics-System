@@ -6,6 +6,32 @@ use zongce_web::auth::{
     CSRF_SESSION_KEY, EDIT_CODE_ALPHABET, generate_csrf_token, generate_edit_code,
     generate_submission_no, hash_secret, verify_csrf_token, verify_secret,
 };
+
+#[tokio::test]
+async fn verified_student_session_replaces_scope_and_rejects_expired_access() {
+    use zongce_web::auth::{
+        VERIFIED_EXPIRES_AT_KEY, establish_verified_student_session, verify_student_session,
+    };
+    let session = Session::new(None, Arc::new(MemoryStore::default()), None);
+    establish_verified_student_session(&session, 10)
+        .await
+        .unwrap();
+    assert!(verify_student_session(&session, 10).await.is_ok());
+    assert!(verify_student_session(&session, 11).await.is_err());
+    establish_verified_student_session(&session, 11)
+        .await
+        .unwrap();
+    assert!(verify_student_session(&session, 10).await.is_err());
+    assert!(verify_student_session(&session, 11).await.is_ok());
+    session
+        .insert(
+            VERIFIED_EXPIRES_AT_KEY,
+            Utc::now() - chrono::Duration::seconds(1),
+        )
+        .await
+        .unwrap();
+    assert!(verify_student_session(&session, 11).await.is_err());
+}
 use zongce_web::domain::AcademicYear;
 
 fn year() -> AcademicYear {

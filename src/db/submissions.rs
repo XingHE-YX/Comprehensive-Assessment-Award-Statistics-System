@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use chrono::{NaiveDate, Utc};
 use serde_json::Value;
-use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
+use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
 
 use crate::domain::{Category, Submission, SubmissionStatus};
 
@@ -33,6 +33,25 @@ pub struct SubmissionFilter {
 pub struct SubmissionRepo;
 
 impl SubmissionRepo {
+    pub async fn update_student(
+        connection: &mut SqliteConnection,
+        id: i64,
+        input: &crate::validation::ValidatedSubmission,
+    ) -> Result<bool, sqlx::Error> {
+        let category_data = serde_json::to_string(&input.category_data)
+            .map_err(|error| sqlx::Error::Encode(Box::new(error)))?;
+        let result = sqlx::query(
+            "UPDATE submissions SET student_name = ?, student_no = ?, category = ?, result_name = ?,
+             obtained_date = ?, detail = ?, remark = ?, category_data = ?, status = 'pending',
+             student_modified_after_review = 1, updated_at = ?
+             WHERE id = ? AND status IN ('pending', 'needs_revision')",
+        )
+        .bind(&input.student_name).bind(&input.student_no).bind(input.category.as_str())
+        .bind(&input.result_name).bind(input.obtained_date).bind(&input.detail).bind(&input.remark)
+        .bind(category_data).bind(Utc::now()).bind(id).execute(connection).await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     pub async fn insert(
         pool: &SqlitePool,
         input: &NewSubmission,

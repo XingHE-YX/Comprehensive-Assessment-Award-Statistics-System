@@ -7,8 +7,9 @@ use std::{collections::BTreeMap, fmt};
 pub use category::validate_category;
 pub use submission::{
     SubmissionInput, ValidatedSubmission, validate_deadline, validate_declaration, validate_score,
-    validate_submission,
+    validate_student_update, validate_submission,
 };
+pub(crate) use upload::validate_uploads_with_existing;
 pub use upload::{ValidatedUpload, validate_upload};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

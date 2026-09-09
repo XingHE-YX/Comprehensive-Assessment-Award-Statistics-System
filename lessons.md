@@ -28,6 +28,11 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - The `/access` route contract uses `400` for an incorrect class code (while credential-protected query/admin routes use `401`); keep route-specific status behavior aligned with `BACKEND_STRUCTURE.md`.
 - `tower_sessions::Session::remove` cannot infer its deserialization type from a discarded result; use explicit types such as `remove::<String>(...)` when clearing typed session values.
 
+- Optional select controls submit an empty string, unlike unchecked checkboxes. Normalize empty category values to absence before shared validation; required validators still reject missing fields.
+- Browser file inputs submit an empty filename/empty body when no file is selected. Ignore only that empty placeholder so updates can preserve existing attachments without requiring another upload.
+- Checking edit permission before parsing is insufficient when administrators can review concurrently. Condition the database write on editable status and acquire the write lock before counting or saving added attachments.
+- An anchor click does not fire hashchange when the fragment is unchanged. Disclosure-opening actions also need a click handler so a manually collapsed editor can reopen.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

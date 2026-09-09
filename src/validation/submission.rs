@@ -6,7 +6,9 @@ use crate::{
     storage::UploadInput,
 };
 
-use super::{ValidationErrors, category::validate_category, upload::validate_uploads};
+use super::{
+    ValidationErrors, category::validate_category, upload::validate_uploads_with_existing,
+};
 
 #[derive(Debug, Clone)]
 pub struct SubmissionInput {
@@ -38,6 +40,25 @@ pub fn validate_submission(
     current_year: &AcademicYear,
     uploads: &[UploadInput],
 ) -> Result<ValidatedSubmission, ValidationErrors> {
+    validate_fields(input, current_year, uploads, 0, true)
+}
+
+pub fn validate_student_update(
+    input: SubmissionInput,
+    submission_year: &AcademicYear,
+    uploads: &[UploadInput],
+    existing_count: usize,
+) -> Result<ValidatedSubmission, ValidationErrors> {
+    validate_fields(input, submission_year, uploads, existing_count, false)
+}
+
+fn validate_fields(
+    input: SubmissionInput,
+    current_year: &AcademicYear,
+    uploads: &[UploadInput],
+    existing_count: usize,
+    check_deadline: bool,
+) -> Result<ValidatedSubmission, ValidationErrors> {
     let mut errors = ValidationErrors::new();
     let student_name = trimmed(&input.student_name);
     let student_no = trimmed(&input.student_no);
@@ -68,14 +89,14 @@ pub fn validate_submission(
     if let Err(category_errors) = validate_category(input.category, &input.category_data) {
         errors.extend(category_errors);
     }
-    let validated_uploads = match validate_uploads(uploads) {
+    let validated_uploads = match validate_uploads_with_existing(uploads, existing_count) {
         Ok(value) => Some(value),
         Err(upload_errors) => {
             errors.extend(upload_errors);
             None
         }
     };
-    if let Err(deadline_errors) = validate_deadline(current_year, Utc::now()) {
+    if check_deadline && let Err(deadline_errors) = validate_deadline(current_year, Utc::now()) {
         errors.extend(deadline_errors);
     }
 

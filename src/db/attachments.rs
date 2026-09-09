@@ -1,5 +1,5 @@
 use chrono::Utc;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection, SqlitePool};
 
 use crate::domain::Attachment;
 
@@ -15,6 +15,27 @@ pub struct NewAttachment {
 pub struct AttachmentRepo;
 
 impl AttachmentRepo {
+    pub async fn count_in_transaction(
+        connection: &mut SqliteConnection,
+        submission_id: i64,
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar("SELECT COUNT(*) FROM attachments WHERE submission_id = ?")
+            .bind(submission_id)
+            .fetch_one(connection)
+            .await
+    }
+
+    pub async fn insert_stored(
+        connection: &mut SqliteConnection,
+        submission_id: i64,
+        item: &crate::storage::StoredAttachment,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("INSERT INTO attachments (submission_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(submission_id).bind(&item.original_name).bind(&item.stored_name)
+            .bind(&item.mime_type).bind(item.file_size).bind(Utc::now()).execute(connection).await?;
+        Ok(())
+    }
+
     pub async fn insert(
         pool: &SqlitePool,
         input: &NewAttachment,

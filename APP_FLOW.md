@@ -139,8 +139,8 @@ Trigger: The student submits the editable detail form.
 Steps:
 
 1. Verify the student session, CSRF token, and current editable status.
-2. Re-run every submission, category, date, and upload validation.
-3. Replace common/category values and add new attachments in a transaction.
+2. Re-run common fields, category, date, and upload validation against the submission's original academic year. The deadline limits new submissions only; existing Pending and Needs Revision records remain editable after the deadline or year deactivation.
+3. Replace common/category values and add new attachments in a transaction. Keep existing attachments; an update may add none, and the combined total must remain 1-10. Re-check editable status when writing and count attachments under the same database write lock.
 4. Set status to Pending, preserve the review note, set `student_modified_after_review=true`, and update `updated_at`.
 5. Redirect to the detail page.
 

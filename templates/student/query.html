@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block title %}查询/修改申报{% endblock %}
+{% block main %}
+<main class="container student-shell">
+  <h1>查询/修改申报</h1>
+  {% if invalid %}<p id="query-error" class="notice notice-error" role="alert">申报编号或修改码不正确，请重试。</p>{% endif %}
+  <form method="post" action="/query" class="stack-form submission-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="field"><label for="submission-no">申报编号</label><input id="submission-no" name="submission_no" value="{{ submission_no }}" maxlength="40" autocomplete="off" required {% if invalid %}aria-invalid="true" aria-describedby="query-error"{% endif %}></div>
+    <div class="field"><label for="edit-code">修改码</label><input id="edit-code" name="edit_code" type="password" maxlength="40" autocomplete="off" required {% if invalid %}aria-invalid="true" aria-describedby="query-error"{% endif %}></div>
+    <div class="form-actions"><button class="button button-primary" type="submit">查询申报</button><a class="button button-secondary" href="/">返回首页</a></div>
+  </form>
+</main>
+{% endblock %}
