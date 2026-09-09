@@ -13,6 +13,7 @@ Current status:
 - Task 4 is complete: the seven category schemas, shared submission/declaration/score/deadline validation, attachment validation integration, category JSON keys, and validation tests are implemented.
 - Task 5 is complete: student home/access/session flow, multipart submission, no-material declarations, transactional submission/attachment persistence, receipt page, seven category form sections, responsive student UI, and submission-flow integration tests are implemented.
 - Task 6 is complete: query credentials, single-submission verified sessions, detail/edit pages, atomic student updates, existing/new attachment limits, protected attachment responses, shared forms, and browser regression coverage are implemented.
+- Task 7 is complete: configured administrator login/logout, protected dashboard/detail/review routes, literal keyword and enum/year filters, filter-aware counts, safe attachment previews, score/status/note validation, and responsive admin pages are implemented.
 
 Completed documents:
 - PRD.md
@@ -24,7 +25,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Task 7: implement administrator login, review, filtering and dashboard. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work; an existing task1-scaffold worktree was preserved.
+- Task 8: implement academic-year and class-code settings. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work; the existing task1-scaffold worktree is preserved.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -62,3 +63,15 @@ Notes:
 - Browser test dependencies are installed outside the repository. Re-run instructions are in docs/testing-student-flow.md.
 - docker compose config could not run: Docker is not installed on this machine, and Compose files remain part of Task 10. This is not a completed deployment verification.
 - A temporary local preview is available through cargo run --example student_preview, using an isolated in-memory database and temporary uploads. It does not wire the production main entry point.
+
+Task 7 delivery notes (2026-09-09):
+- Implemented /admin/login, POST /admin/logout, /admin, /admin/submissions/{id}, and POST review, using shared sessions/CSRF and protected attachment routes.
+- Added build_router_with_config for configured credentials, session key/cookie policy and body limit. The old build_router is student-only development/test wiring and has no administrator credentials. Production main wiring remains the separate Task 1 reconciliation; this task does not claim deployment readiness.
+- Followed APP_FLOW.md over the conflicting backend filter sentence: invalid values are ignored with a visible notice; backend documentation now agrees. Omitted year selects the active year; explicit empty year selects all; no active year preserves historical visibility.
+- Counts and approved totals use selected submissions. Declaration counts use only year/name/student-number; the UI explains that distinction. Settings and export controls remain disabled until Tasks 8 and 9.
+- Administrator details share the student category-display mapping, show the resubmission marker, and preserve the record if an attachment is unavailable. Review validates all four states, requires Approved score, accepts zero/two decimals, and rejects exponent notation, negative/non-finite/excess-precision scores and overlong notes before transactional updates.
+- Read-only review identified default Axum extraction errors. Reproduced and fixed route-local Path/Form/Query rejection handling; anonymous requests still hit the guard first. Visual review found negative zero for an empty approved total; reproduced with an integration test and fixed.
+- Added isolated admin preview and repeatable Playwright browser coverage; see docs/testing-admin-flow.md. No production credentials, data or runtime dependencies are introduced.
+- Final Task 7 verification passed: cargo +1.88.0 fmt --check; cargo +1.88.0 test --test admin_flow (8 tests); cargo +1.88.0 clippy --all-targets --all-features -- -D warnings; cargo +1.88.0 test --all-targets (41 tests); git diff --check.
+- Final Playwright 1.52.0 admin and student browser regressions passed at 320x568, 390x844, 768x1024 and 1440x900. Admin coverage includes JS-disabled tablet forms, PNG/PDF authorization, score errors, needs_revision -> student amendment -> approved, student read-only result and logout. Student regression covers all seven categories and conditional branches. Mobile and desktop screenshots were inspected; no page overflow or overlapping controls was found.
+- docker compose config was attempted again and could not execute (Docker command not found). Compose/deployment files remain Task 10, and no deployment claim is made.

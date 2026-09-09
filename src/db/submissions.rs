@@ -117,12 +117,14 @@ impl SubmissionRepo {
         if let Some(name) = &filter.name {
             query
                 .push(" AND student_name LIKE ")
-                .push_bind(format!("%{name}%"));
+                .push_bind(literal_keyword(name))
+                .push(" ESCAPE '\\'");
         }
         if let Some(student_no) = &filter.student_no {
             query
                 .push(" AND student_no LIKE ")
-                .push_bind(format!("%{student_no}%"));
+                .push_bind(literal_keyword(student_no))
+                .push(" ESCAPE '\\'");
         }
         if let Some(category) = filter.category {
             query.push(" AND category = ").push_bind(category.as_str());
@@ -142,7 +144,8 @@ impl SubmissionRepo {
         review_note: Option<&str>,
         approved_score: Option<f64>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query(
+        let mut transaction = pool.begin().await?;
+        let result = sqlx::query(
             "UPDATE submissions SET status = ?, review_note = ?, approved_score = ?, updated_at = ?
              WHERE id = ?",
         )
@@ -151,8 +154,12 @@ impl SubmissionRepo {
         .bind(approved_score)
         .bind(Utc::now())
         .bind(id)
-        .execute(pool)
+        .execute(&mut *transaction)
         .await?;
+        if result.rows_affected() != 1 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+        transaction.commit().await?;
         Ok(())
     }
 }
@@ -184,4 +191,15 @@ fn row_to_submission(row: sqlx::sqlite::SqliteRow) -> Result<Submission, sqlx::E
         created_at: row.try_get("created_at")?,
         updated_at: row.try_get("updated_at")?,
     })
+}
+
+// A keyword is literal text, including SQL LIKE metacharacters.
+pub(super) fn literal_keyword(value: &str) -> String {
+    format!(
+        "%{}%",
+        value
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    )
 }

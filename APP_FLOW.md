@@ -170,11 +170,11 @@ Trigger: A valid admin session opens the dashboard.
 Steps:
 
 1. Load active year, counts by status, no-material declaration count, and approved score total.
-2. Apply optional filters: academic year, name keyword, student number keyword, category, and status.
+2. Apply optional filters: academic year, name keyword, student number keyword, category, and status. An omitted year defaults to the active year, an empty year selects all years, and no active year defaults to all historical years. Name and student number keywords match literal substrings.
 3. Sort by `created_at DESC` and render the compact table.
 4. Provide links to each detail page, Settings, Export, and Logout.
 
-Success state: The table and counts reflect the selected filters.
+Success state: The table, status counts, and approved score total reflect the selected filters. No-material declaration counts apply only academic year, name, and student number because declarations have no category or review status; the dashboard explains this beside the counts.
 
 Error state: Invalid filter values are ignored with a visible non-blocking message; database failure returns 500.
 

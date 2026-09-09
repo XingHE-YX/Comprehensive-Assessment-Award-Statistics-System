@@ -133,7 +133,7 @@ HTML errors: 400 invalid request, 401 invalid credential, 403 unauthorized, 404 
 
 ## 5. Admin route contracts
 
-All routes below require an admin session and CSRF on POST.
+Login is public and requires CSRF on POST. All other implemented routes below require an admin session and CSRF on POST. Anonymous GET/HEAD requests to protected admin pages redirect to `/admin/login` with 303; unauthorized writes return 403 before parsing the request.
 
 | Method | Path | Request | Response |
 |---|---|---|---|
@@ -150,13 +150,15 @@ All routes below require an admin session and CSRF on POST.
 | POST | `/admin/settings/class-code` | `class_access_code`, CSRF | 303 settings or 422 |
 | GET | `/admin/export.xlsx` | year and optional filters | XLSX bytes |
 
-Dashboard filters are `academic_year_id`, `name`, `student_no`, `category`, and `status`. Unknown enum values are rejected with 400.
+Dashboard filters are `academic_year_id`, `name`, `student_no`, `category`, and `status`. An omitted year defaults to the active year; an explicitly empty year selects all years. Without an active year, the default includes historical years. Following APP_FLOW.md, invalid enum/year values and overlong or control-character keywords are ignored with a visible non-blocking Chinese notice (200). Other valid filters still apply. Names (maximum 50 characters) and student numbers (maximum 30 characters) use literal substring matching, with SQL LIKE metacharacters escaped and values bound. Malformed path, query, and form extraction errors return a stable Chinese 400 response.
+
+Counts by status and approved score totals use the same selected submissions as the table. No-material declarations have no category/status; their count applies only year/name/student-number filters, as stated beside the counters.
 
 ## 6. Authentication and authorization
 
 ### Admin
 
-`ADMIN_USERNAME` is compared in constant-time where practical; `ADMIN_PASSWORD_HASH` is an Argon2id PHC string. A successful login stores only `admin_authenticated=true` and a session creation timestamp. Every admin route runs `require_admin`. The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` in production. Login failures use one generic message and a bounded delay.
+`ADMIN_USERNAME` is compared in constant-time where practical; `ADMIN_PASSWORD_HASH` is an Argon2id PHC string. A successful login stores only `admin_authenticated=true` and a session creation timestamp. Every admin route runs `require_admin`. The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` in production. Login failures use one generic message and a bounded delay. Password verification runs on a blocking worker and is performed even for an unknown username. Successful login rotates the session id and CSRF token; logout flushes the session.
 
 ### Student class access
 
@@ -174,7 +176,7 @@ Every state-changing form receives a per-session random CSRF token. The token is
 
 Validation is shared by create and update paths. Date, category, conditional fields, attachment count/size/type, score, and text lengths are checked server-side. Uploads stream to a temporary file, validate byte count and declared/guessed MIME, then atomically move to the year/submission directory with a random filename. Static file serving never mounts `UPLOAD_DIR`.
 
-Student updates validate dates against the record's original academic year. Following PRD section 6, the deadline applies to new submissions only. Existing attachments count toward the 1-10 limit and do not need to be re-uploaded. Student update transactions condition their first write on editable status, then recount attachments before saving additional files. Private student HTML and attachment responses use `Cache-Control: no-store`; attachments also use `X-Content-Type-Options: nosniff`.
+Student updates validate dates against the record's original academic year. Following PRD section 6, the deadline applies to new submissions only. Existing attachments count toward the 1-10 limit and do not need to be re-uploaded. Student update transactions condition their first write on editable status, then recount attachments before saving additional files. Private student/admin HTML and attachment responses use `Cache-Control: no-store`; attachments also use `X-Content-Type-Options: nosniff`.
 
 ## 8. Error and logging contract
 

@@ -33,6 +33,16 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - Checking edit permission before parsing is insufficient when administrators can review concurrently. Condition the database write on editable status and acquire the write lock before counting or saving added attachments.
 - An anchor click does not fire hashchange when the fragment is unchanged. Disclosure-opening actions also need a click handler so a manually collapsed editor can reopen.
 
+## 2026-09-09 — Task 7
+
+- Build failure E0277: axum-test response bytes use `Bytes`, which cannot be directly compared with a fixed-size byte array in this assertion. Compare byte slices when checking exact protected attachment content.
+- Axum Path/Form/Query extraction can reject requests before handlers with English text and Rust type information. Capture route-local extractor rejections and map them to AppError; test malformed inputs as well as valid forms, with authorization checked before extraction.
+- Rust floating-point iterator `sum()` uses negative zero as the empty identity. For a displayed non-negative score total, fold from positive `0.0` and cover no-approved-record/empty-dashboard cases so the UI shows `0.00`.
+- A Playwright URL glob such as `**?saved=1` does not match across slash-separated paths. A browser regression timed out after a successful 303 because of that matcher; use a URL predicate for pathname and search parameters.
+- Specification conflict resolved using AGENT.md priority: APP_FLOW.md requires invalid dashboard filters to be ignored with a visible notice, so BACKEND_STRUCTURE.md's old 400 rule was corrected. Literal keyword searches must also escape `%`, `_` and backslash in bound LIKE patterns.
+
+- `docker compose config` could not execute because Docker is absent on this development machine. Keep that result separate from successful application checks; Compose syntax and deployment remain unverified until the runtime and Task 10 files exist.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

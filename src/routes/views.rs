@@ -151,6 +151,48 @@ pub fn detail(
     values: Option<BTreeMap<String, String>>,
     errors: ValidationErrors,
 ) -> Result<String, askama::Error> {
+    let (mut stored_values, category_fields) = submission_values(&submission);
+    stored_values.extend([
+        ("student_name".to_owned(), submission.student_name.clone()),
+        ("student_no".to_owned(), submission.student_no.clone()),
+        ("result_name".to_owned(), submission.result_name.clone()),
+        (
+            "obtained_date".to_owned(),
+            submission.obtained_date.to_string(),
+        ),
+        (
+            "category".to_owned(),
+            submission.category.as_str().to_owned(),
+        ),
+        (
+            "detail".to_owned(),
+            submission.detail.clone().unwrap_or_default(),
+        ),
+        (
+            "remark".to_owned(),
+            submission.remark.clone().unwrap_or_default(),
+        ),
+    ]);
+    let form = SubmissionForm {
+        csrf_token,
+        values: values.unwrap_or(stored_values),
+        errors,
+        action: format!("/query/{}/update", submission.submission_no),
+        editing: true,
+    };
+    DetailTemplate {
+        year,
+        submission,
+        attachments,
+        category_fields,
+        form,
+    }
+    .render()
+}
+
+pub(super) fn submission_values(
+    submission: &Submission,
+) -> (BTreeMap<String, String>, Vec<(&'static str, String)>) {
     let mut stored_values = BTreeMap::new();
     if let Some(data) = submission.category_data.as_object() {
         for (key, value) in data {
@@ -198,40 +240,5 @@ pub fn detail(
             }
         }
     }
-    stored_values.extend([
-        ("student_name".to_owned(), submission.student_name.clone()),
-        ("student_no".to_owned(), submission.student_no.clone()),
-        ("result_name".to_owned(), submission.result_name.clone()),
-        (
-            "obtained_date".to_owned(),
-            submission.obtained_date.to_string(),
-        ),
-        (
-            "category".to_owned(),
-            submission.category.as_str().to_owned(),
-        ),
-        (
-            "detail".to_owned(),
-            submission.detail.clone().unwrap_or_default(),
-        ),
-        (
-            "remark".to_owned(),
-            submission.remark.clone().unwrap_or_default(),
-        ),
-    ]);
-    let form = SubmissionForm {
-        csrf_token,
-        values: values.unwrap_or(stored_values),
-        errors,
-        action: format!("/query/{}/update", submission.submission_no),
-        editing: true,
-    };
-    DetailTemplate {
-        year,
-        submission,
-        attachments,
-        category_fields,
-        form,
-    }
-    .render()
+    (stored_values, category_fields)
 }

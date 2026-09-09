@@ -94,11 +94,11 @@ Files: `src/routes/query.rs`, `templates/student/{query,detail}.html`, `tests/qu
 
 Files: `src/routes/admin_auth.rs`, `src/routes/admin.rs`, `src/routes/admin_submissions.rs`, `templates/admin/{login,index,submission}.html`, `tests/admin_flow.rs`。
 
-- [ ] 写未登录保护、错误凭据统一提示、筛选、附件查看、状态和分值校验测试。
-- [ ] 实现 `/admin/login`、`/admin/logout`、`/admin`、详情和审核 POST。
-- [ ] 加入 `require_admin` middleware、CSRF、统计计数和中文状态标签。
-- [ ] 列表默认 `created_at DESC`；筛选参数只允许后端定义的枚举和值。
-- [ ] 运行 `cargo test --test admin_flow`。
+- [x] 写未登录保护、错误凭据统一提示、筛选、附件查看、状态和分值校验测试。
+- [x] 实现 `/admin/login`、`/admin/logout`、`/admin`、详情和审核 POST。
+- [x] 加入 `require_admin` middleware、CSRF、统计计数和中文状态标签。
+- [x] 列表默认 `created_at DESC`；筛选参数只允许后端定义的枚举和值。
+- [x] 运行 `cargo test --test admin_flow`。
 
 完成条件：管理员可完整审核一条申报，学生 session 不可调用管理员路由。
 

@@ -158,7 +158,17 @@ pub fn validate_score(score: Option<&str>) -> Result<Option<f64>, ValidationErro
     let decimal_places = value
         .split_once('.')
         .map_or(0, |(_, decimals)| decimals.len());
-    if decimal_places > 2
+    let plain_decimal = value.split_once('.').map_or_else(
+        || value.bytes().all(|byte| byte.is_ascii_digit()),
+        |(integer, fraction)| {
+            !integer.is_empty()
+                && !fraction.is_empty()
+                && integer.bytes().all(|byte| byte.is_ascii_digit())
+                && fraction.bytes().all(|byte| byte.is_ascii_digit())
+        },
+    );
+    if !plain_decimal
+        || decimal_places > 2
         || parsed
             .is_none_or(|number| !number.is_finite() || number < 0.0 || round_two(number) != number)
     {

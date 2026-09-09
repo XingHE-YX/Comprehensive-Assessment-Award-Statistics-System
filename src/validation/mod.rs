@@ -1,3 +1,4 @@
+pub mod admin;
 mod category;
 mod submission;
 mod upload;

@@ -1,3 +1,6 @@
+mod admin;
+mod admin_auth;
+mod admin_submissions;
 mod fields;
 mod query;
 mod student;
@@ -9,10 +12,54 @@ use tower_http::services::ServeDir;
 
 use crate::{auth, state::AppState};
 
+/// Student-only development/test entry point; administrator login is disabled.
+/// Production startup must use build_router_with_config with validated configuration.
 pub fn build_router(state: AppState) -> Router {
     let session_layer =
         auth::session_layer(&[42_u8; 64], false).expect("static development session key is valid");
+    router(state, session_layer, None, 115_343_360)
+}
+
+/// Configured session, administrator credentials and body limit for application startup.
+pub fn build_router_with_config(
+    state: AppState,
+    config: &crate::config::Config,
+) -> Result<Router, auth::AuthError> {
+    Ok(router(
+        state,
+        auth::session_layer(&config.session_secret, config.cookie_secure)?,
+        Some(std::sync::Arc::new(auth::AdminCredentials::new(
+            config.admin_username.clone(),
+            config.admin_password_hash.clone(),
+        ))),
+        config.max_body_bytes,
+    ))
+}
+
+fn router(
+    state: AppState,
+    session_layer: tower_sessions::SessionManagerLayer<
+        tower_sessions::MemoryStore,
+        tower_sessions::service::PrivateCookie,
+    >,
+    credentials: Option<std::sync::Arc<auth::AdminCredentials>>,
+    max_body_bytes: usize,
+) -> Router {
+    let protected = Router::new()
+        .route("/admin", get(admin::dashboard))
+        .route("/admin/logout", axum::routing::post(admin_auth::logout))
+        .route("/admin/submissions/{id}", get(admin_submissions::detail))
+        .route(
+            "/admin/submissions/{id}/review",
+            axum::routing::post(admin_submissions::review),
+        )
+        .route_layer(axum::middleware::from_fn(admin_auth::require_admin));
     Router::new()
+        .merge(protected)
+        .route(
+            "/admin/login",
+            get(admin_auth::login_get).post(admin_auth::login_post),
+        )
         .route("/", get(student::home))
         .route("/access", axum::routing::post(student::access))
         .route(
@@ -40,7 +87,8 @@ pub fn build_router(state: AppState) -> Router {
             },
         ))
         .nest_service("/static", ServeDir::new("static"))
-        .layer(DefaultBodyLimit::max(115_343_360))
+        .layer(DefaultBodyLimit::max(max_body_bytes))
+        .layer(axum::Extension(credentials))
         .layer(session_layer)
         .with_state(state)
 }

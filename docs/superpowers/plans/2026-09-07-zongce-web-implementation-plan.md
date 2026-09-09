@@ -339,19 +339,19 @@
 - `require_admin` middleware 保护所有 `/admin/*`。
 - `approved` 建议要求 `approved_score` 非空；`rejected` 可默认 0；分值允许 0，最多两位小数。
 
-- [ ] **Step 1: 编写管理员权限、筛选和审核测试**
+- [x] **Step 1: 编写管理员权限、筛选和审核测试**
 
   覆盖未登录 403/重定向、错误凭据统一提示、状态筛选、管理员查看附件、状态变更、分值校验和学生修改标记。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
   运行：`cargo test --test admin_flow`
 
-- [ ] **Step 3: 实现后台页面和 POST 审核流程**
+- [x] **Step 3: 实现后台页面和 POST 审核流程**
 
   顶部展示当前学年、总数、各状态数、无材料声明数和已通过总分；状态标签使用明确中文；加入隐藏 CSRF token 并在 POST 中验证。
 
-- [ ] **Step 4: 运行测试并提交**
+- [x] **Step 4: 运行测试并提交**
 
   运行：`cargo test --test admin_flow`
 

@@ -1,4 +1,6 @@
+mod admin;
 mod password;
+pub use admin::AdminCredentials;
 
 use std::convert::TryFrom;
 
@@ -45,11 +47,15 @@ pub enum AuthError {
     MissingSession,
     #[error("会话密钥无效")]
     InvalidSessionSecret,
+    #[error("凭据验证暂时不可用")]
+    Verification,
 }
 
 pub type AuthResult<T> = Result<T, AuthError>;
 
 pub async fn establish_admin_session(session: &Session) -> AuthResult<()> {
+    session.cycle_id().await?;
+    session.remove::<String>(CSRF_SESSION_KEY).await?;
     session.insert(ADMIN_AUTHENTICATED_KEY, true).await?;
     session
         .insert(ADMIN_AUTHENTICATED_AT_KEY, Utc::now())

@@ -1,11 +1,34 @@
+use super::{SubmissionFilter, submissions::literal_keyword};
 use chrono::Utc;
-use sqlx::{Row, SqlitePool};
+use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
 
 use crate::domain::StudentDeclaration;
 
 pub struct DeclarationRepo;
 
 impl DeclarationRepo {
+    /// Declarations have no category or review status; only identity and year apply.
+    pub async fn count(pool: &SqlitePool, filter: &SubmissionFilter) -> Result<i64, sqlx::Error> {
+        let mut query =
+            QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM student_declarations WHERE 1 = 1");
+        if let Some(id) = filter.academic_year_id {
+            query.push(" AND academic_year_id = ").push_bind(id);
+        }
+        if let Some(name) = &filter.name {
+            query
+                .push(" AND student_name LIKE ")
+                .push_bind(literal_keyword(name))
+                .push(" ESCAPE '\\'");
+        }
+        if let Some(number) = &filter.student_no {
+            query
+                .push(" AND student_no LIKE ")
+                .push_bind(literal_keyword(number))
+                .push(" ESCAPE '\\'");
+        }
+        query.build_query_scalar().fetch_one(pool).await
+    }
+
     pub async fn upsert(
         pool: &SqlitePool,
         academic_year_id: i64,

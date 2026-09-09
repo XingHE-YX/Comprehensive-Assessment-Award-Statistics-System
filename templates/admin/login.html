@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block title %}管理员登录{% endblock %}
+{% block main %}
+<main class="container student-shell">
+  <p class="context-line">综测成果申报 · 管理后台</p>
+  <h1>管理员登录</h1>
+  <form method="post" action="/admin/login" class="stack-form submission-form" data-admin-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if invalid %}<p id="login-error" class="notice notice-error" role="alert">用户名或密码错误，请重试。</p>{% endif %}
+    <div class="field"><label for="username">用户名<span class="required">*</span></label><input id="username" name="username" autocomplete="username" required value="{{ username }}" {% if invalid %}autofocus aria-invalid="true" aria-describedby="login-error"{% endif %}></div>
+    <div class="field"><label for="password">密码<span class="required">*</span></label><input id="password" name="password" type="password" autocomplete="current-password" required {% if invalid %}aria-invalid="true" aria-describedby="login-error"{% endif %}></div>
+    <div class="form-actions"><button class="button button-primary" type="submit">登录</button><a class="button button-secondary" href="/">返回首页</a></div>
+  </form>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin-forms.js" defer></script>{% endblock %}

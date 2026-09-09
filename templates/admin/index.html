@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}申报管理{% endblock %}
+{% block main %}
+<main class="container admin-shell">
+  <div class="admin-heading"><div><p class="context-line">当前学年：{{ active_year_name }}</p><h1>申报管理</h1></div>{% include "admin/navigation.html" %}</div>
+  <section class="admin-section" aria-labelledby="summary-heading">
+    <h2 id="summary-heading">筛选结果概览</h2>
+    <dl class="count-strip">
+      <div><dt>申报总数</dt><dd id="count-total">{{ data.submissions.len() }}</dd></div>
+      {% for (status, count) in data.status_counts %}<div><dt>{{ status.label() }}</dt><dd id="count-{{ status.as_str() }}">{{ count }}</dd></div>{% endfor %}
+      <div><dt>无材料声明</dt><dd id="count-declarations">{{ data.declaration_count }}</dd></div>
+      <div><dt>已通过总分</dt><dd id="approved-total">{{ data.approved_total }}</dd></div>
+    </dl>
+    <p class="helper">申报数量与总分按下方筛选统计；无材料声明仅按学年、姓名和学号统计。</p>
+  </section>
+  <section class="admin-section" aria-labelledby="filters-heading">
+    <h2 id="filters-heading">筛选申报</h2>
+    {% if invalid_filters %}<p class="notice notice-warning" role="status">已忽略无效筛选条件，请从列表中选择学年、类别和状态，姓名与学号请使用有效关键词。</p>{% endif %}
+    <form class="admin-filters" method="get" action="/admin">
+      <div class="field"><label for="academic_year_id">学年</label><select id="academic_year_id" name="academic_year_id"><option value="" {% if filter.academic_year_id.is_none() %}selected{% endif %}>全部学年</option>{% for year in years %}<option value="{{ year.id }}" {% if self.year_selected(year.id) %}selected{% endif %}>{{ year.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="name">姓名关键词</label><input id="name" name="name" maxlength="50" value="{{ filter.name.as_deref().unwrap_or("") }}"></div>
+      <div class="field"><label for="student_no">学号关键词</label><input id="student_no" name="student_no" maxlength="30" value="{{ filter.student_no.as_deref().unwrap_or("") }}"></div>
+      <div class="field"><label for="category">成果类别</label><select id="category" name="category"><option value="">全部类别</option>{% for category in self.categories() %}<option value="{{ category.as_str() }}" {% if self.category_selected(category) %}selected{% endif %}>{{ category.label() }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="status">审核状态</label><select id="status" name="status"><option value="">全部状态</option>{% for status in self.statuses() %}<option value="{{ status.as_str() }}" {% if self.status_selected(status) %}selected{% endif %}>{{ status.label() }}</option>{% endfor %}</select></div>
+      <div class="form-actions"><button class="button button-primary" type="submit">应用筛选</button><a class="button button-secondary" href="/admin">重置</a></div>
+    </form>
+  </section>
+  <section class="admin-section" aria-labelledby="list-heading">
+    <h2 id="list-heading">申报列表</h2>
+    {% if data.submissions.is_empty() %}<p class="notice notice-neutral">没有符合筛选条件的申报。可调整上方条件，或<a href="/admin?academic_year_id=">查看全部学年</a>。</p>
+    {% else %}
+    <p id="table-hint" class="helper">按提交时间从新到旧排列。窄屏可横向滚动查看所有列。</p>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="申报列表，可横向滚动" aria-describedby="table-hint">
+      <table class="data-table"><caption>符合筛选条件的 {{ data.submissions.len() }} 条申报</caption>
+        <thead><tr><th scope="col">申报编号</th><th scope="col">姓名 / 学号</th><th scope="col">成果</th><th scope="col">审核状态</th><th scope="col">核定分值</th><th scope="col">提交时间</th><th scope="col">操作</th></tr></thead>
+        <tbody>{% for submission in data.submissions %}<tr>
+          <td class="table-number">{{ submission.submission_no }}</td><td>{{ submission.student_name }}<br><span class="helper">{{ submission.student_no }}</span></td>
+          <td>{{ submission.result_name }}<br><span class="helper">{{ submission.category.label() }}</span>{% if submission.student_modified_after_review %}<br><span class="helper">已重新提交审核</span>{% endif %}</td>
+          <td><span class="status-badge status-{{ submission.status.as_str() }}">{{ submission.status.label() }}</span></td>
+          <td>{% match submission.approved_score %}{% when Some with (score) %}{{ score }}{% when None %}未核定{% endmatch %}</td>
+          <td><time datetime="{{ submission.created_at.to_rfc3339() }}">{{ submission.created_at.format("%Y-%m-%d %H:%M UTC") }}</time></td>
+          <td><a href="/admin/submissions/{{ submission.id }}" aria-label="查看 {{ submission.submission_no }}">查看</a></td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>{% endif %}
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin-forms.js" defer></script>{% endblock %}
