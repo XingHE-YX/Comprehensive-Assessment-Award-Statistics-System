@@ -375,15 +375,15 @@
 - `POST /admin/years/:id/activate`：事务内关闭其他 active，再激活目标学年。
 - `POST /admin/settings/class-code`：哈希后更新班级口令，无需重启。
 
-- [ ] **Step 1: 编写 active 学年唯一性和口令更新测试**
+- [x] **Step 1: 编写 active 学年唯一性和口令更新测试**
 
-- [ ] **Step 2: 运行 `cargo test --test settings` 确认失败**
+- [x] **Step 2: 运行 `cargo test --test settings` 确认失败**
 
-- [ ] **Step 3: 实现设置页面和事务更新**
+- [x] **Step 3: 实现设置页面和事务更新**
 
   未配置学年时学生首页显示“当前暂未开放申报”；历史数据保持可查询和可导出。
 
-- [ ] **Step 4: 运行测试并提交**
+- [x] **Step 4: 运行测试并提交**
 
   运行：`cargo test --test settings`
 

@@ -1,5 +1,6 @@
 mod admin;
 mod admin_auth;
+mod admin_settings;
 mod admin_submissions;
 mod fields;
 mod query;
@@ -52,6 +53,20 @@ fn router(
         .route(
             "/admin/submissions/{id}/review",
             axum::routing::post(admin_submissions::review),
+        )
+        .route("/admin/settings", get(admin_settings::page))
+        .route("/admin/years", axum::routing::post(admin_settings::create))
+        .route(
+            "/admin/years/{id}",
+            axum::routing::post(admin_settings::update),
+        )
+        .route(
+            "/admin/years/{id}/activate",
+            axum::routing::post(admin_settings::activate),
+        )
+        .route(
+            "/admin/settings/class-code",
+            axum::routing::post(admin_settings::class_code),
         )
         .route_layer(axum::middleware::from_fn(admin_auth::require_admin));
     Router::new()

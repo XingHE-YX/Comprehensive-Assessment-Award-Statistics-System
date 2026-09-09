@@ -126,6 +126,16 @@ pub async fn submit_post(
         return Err(AppError::BadRequest);
     }
 
+    // A request may spend time uploading while the administrator changes settings.
+    // Re-read under the write lock; both results and declarations use this snapshot.
+    let mut transaction = state.db.begin_with("BEGIN IMMEDIATE").await?;
+    let Some(year) = AcademicYearRepo::current_in_transaction(&mut transaction).await? else {
+        return Ok(Redirect::to("/").into_response());
+    };
+    if year.id != year_id {
+        return Ok(Redirect::to("/").into_response());
+    }
+
     let has_result = values
         .get("has_result")
         .map(String::as_str)
@@ -144,14 +154,17 @@ pub async fn submit_post(
             Ok(()) => ValidationErrors::new(),
             Err(errors) => errors,
         };
+        if let Err(deadline_errors) = crate::validation::validate_deadline(&year, Utc::now()) {
+            errors.extend(deadline_errors);
+        }
         if values.get("no_result_confirm").map(String::as_str) != Some("yes") {
             errors.add("no_result_confirm", "请确认本学年暂无成果材料");
         }
         if !errors.is_empty() {
             return render_submit_error(&session, year, values, errors).await;
         }
-        DeclarationRepo::upsert(
-            &state.db,
+        DeclarationRepo::upsert_in_transaction(
+            &mut transaction,
             year.id,
             values
                 .get("student_name")
@@ -165,6 +178,7 @@ pub async fn submit_post(
                 .trim(),
         )
         .await?;
+        transaction.commit().await?;
         return Ok(Redirect::to("/success/declaration").into_response());
     }
 
@@ -179,17 +193,11 @@ pub async fn submit_post(
     let edit_code = crate::auth::generate_edit_code();
     let edit_code_hash = crate::auth::hash_secret(&edit_code).map_err(|_| AppError::BadRequest)?;
 
-    let mut transaction = state.db.begin().await?;
-    let sequence: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(MAX(CAST(substr(submission_no, 8) AS INTEGER)), 0) + 1 FROM submissions WHERE academic_year_id = ?",
-    )
-    .bind(year.id)
-    .fetch_one(&mut *transaction)
-    .await?;
-    let submission_no = crate::auth::generate_submission_no(&year, sequence as u64);
+    let submission_no = SubmissionRepo::next_number(&mut transaction, &year).await?;
+    let year_directory = crate::storage::academic_year_directory(year.id);
     let stored = match state
         .storage
-        .save_many(&year.name, &submission_no, 0, uploads)
+        .save_many(&year_directory, &submission_no, 0, uploads)
         .await
     {
         Ok(stored) => stored,
@@ -225,7 +233,7 @@ pub async fn submit_post(
             for item in &stored {
                 let _ = state
                     .storage
-                    .remove_for_submission(&year.name, &submission_no, &item.stored_name)
+                    .remove_for_submission(&year_directory, &submission_no, &item.stored_name)
                     .await;
             }
             return Err(AppError::Database(error));
@@ -246,7 +254,7 @@ pub async fn submit_post(
         {
             let _ = transaction.rollback().await;
             for saved in &stored {
-                let _ = state.storage.remove_for_submission(&year.name, &submission_no, &saved.stored_name).await;
+                let _ = state.storage.remove_for_submission(&year_directory, &submission_no, &saved.stored_name).await;
             }
             return Err(AppError::Database(error));
         }
@@ -255,7 +263,7 @@ pub async fn submit_post(
         for saved in &stored {
             let _ = state
                 .storage
-                .remove_for_submission(&year.name, &submission_no, &saved.stored_name)
+                .remove_for_submission(&year_directory, &submission_no, &saved.stored_name)
                 .await;
         }
         return Err(AppError::Database(error));

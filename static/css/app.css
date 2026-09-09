@@ -123,6 +123,17 @@ summary { cursor: pointer; font-weight: 600; }
 .admin-attachments p { margin: 0 0 8px; }
 .attachment-preview { display: block; max-width: 100%; max-height: 320px; object-fit: contain; margin-top: 12px; }
 
+/* Settings uses sibling tools and native POST forms at every viewport. */
+.settings-grid { display: grid; gap: 24px; align-items: start; }
+.settings-panel, .settings-panel .field { min-width: 0; }
+.settings-panel { scroll-margin-top: 24px; }
+.settings-panel .field { gap: 8px; }
+.settings-panel > .helper { margin-top: 12px; }
+.settings-date-grid { display: grid; gap: 16px; align-items: start; }
+.settings-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.settings-row-actions form { margin: 0; }
+.settings-table { min-width: 880px; }
+
 @media (max-width: 639px) {
   h1 { font-size: 24px; }
   .student-shell { padding-block: 24px 40px; }
@@ -137,6 +148,7 @@ summary { cursor: pointer; font-weight: 600; }
 }
 
 @media (min-width: 640px) {
+  .settings-date-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .admin-filters { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
   .count-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
@@ -147,6 +159,7 @@ summary { cursor: pointer; font-weight: 600; }
 }
 
 @media (min-width: 1024px) {
+  .settings-grid { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); }
   .count-strip { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .admin-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
   .admin-detail-grid { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); }

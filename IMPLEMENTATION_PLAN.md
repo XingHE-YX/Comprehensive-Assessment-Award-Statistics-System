@@ -106,12 +106,14 @@ Files: `src/routes/admin_auth.rs`, `src/routes/admin.rs`, `src/routes/admin_subm
 
 Files: `src/routes/admin_settings.rs`, `templates/admin/settings.html`, `tests/settings.rs`。
 
-- [ ] 写 active 唯一性、日期顺序、截止时间、历史保留和口令更新测试。
-- [ ] 实现新建/编辑/激活学年和班级口令 POST 表单。
-- [ ] 激活操作在一个事务内先关闭其他 active 再激活目标。
-- [ ] 运行 `cargo test --test settings`。
+- [x] 写 active 唯一性、日期顺序、截止时间、历史保留和口令更新测试。
+- [x] 实现新建/编辑/激活学年和班级口令 POST 表单。
+- [x] 激活操作在一个事务内先关闭其他 active 再激活目标。
+- [x] 运行 `cargo test --test settings`。
 
 完成条件：设置修改立即生效，历史申报仍可查看和导出。
+
+Task 8 交付：设置与历史数据保留已验证；实际 XLSX 下载依任务顺序在 Task 9 实现。新增设置集成测试、浏览器回归及联动修复说明见 `docs/testing-admin-flow.md` 和 `progress.txt`。
 
 ### Task 9: Excel 导出
 

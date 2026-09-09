@@ -589,7 +589,7 @@ async fn attachment_insert_failure_rolls_back_fields_and_removes_new_files() {
         1
     );
     assert_eq!(
-        std::fs::read_dir(dir.path().join("2025-2026学年").join(number))
+        std::fs::read_dir(dir.path().join("year-1").join(number))
             .unwrap()
             .count(),
         1

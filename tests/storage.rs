@@ -26,7 +26,10 @@ async fn saves_with_random_name_and_reopens_inside_submission_directory() {
     assert!(!saved.stored_name.contains("\\"));
     assert!(Path::new(&saved.stored_name).file_name().is_some());
 
-    let mut file = storage.open(&saved.stored_name).await.expect("open");
+    // Reconstruct storage to simulate a restart; legacy display-name directories
+    // remain readable without the in-memory path cache.
+    let reopened = AttachmentStorage::new(dir.path());
+    let mut file = reopened.open(&saved.stored_name).await.expect("open");
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).await.expect("read");
     assert_eq!(bytes, b"proof");

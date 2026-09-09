@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block title %}学年与班级设置{% endblock %}
+{% block main %}
+<main class="container admin-shell">
+  <div class="admin-heading"><div><p class="context-line">管理后台</p><h1>学年与班级设置</h1></div>{% include "admin/navigation.html" %}</div>
+  {% if !saved.is_empty() %}<p class="notice notice-success" role="status">{{ saved }}</p>{% endif %}
+  {% if !notice.is_empty() %}<p class="notice notice-error" role="alert" tabindex="-1" autofocus>{{ notice }}</p>{% endif %}
+  {% if !editor.errors.is_empty() || !code_errors.is_empty() %}
+  <div class="notice notice-error" role="alert" tabindex="-1" autofocus><p>设置未保存，请检查以下内容：</p><ul>
+    {% for (field, messages) in editor.errors.fields %}{% for message in messages %}<li><a href="#year-{{ field }}">{{ message }}</a></li>{% endfor %}{% endfor %}
+    {% for (_, messages) in code_errors.fields %}{% for message in messages %}<li><a href="#class_access_code">{{ message }}</a></li>{% endfor %}{% endfor %}
+  </ul></div>
+  {% endif %}
+  <section class="admin-section" aria-labelledby="years-heading">
+    <div class="admin-heading"><h2 id="years-heading">学年列表</h2><a href="/admin/settings#year-form">新建学年</a></div>
+    <p class="helper">同一时间只开放一个当前学年。新建学年后需单独激活；切换学年不会删除历史申报。</p>
+    {% if years.is_empty() %}<p class="notice notice-neutral">暂无学年，请先在下方新建并激活学年。学生端暂未开放申报。</p>{% else %}
+    <div class="table-scroll" role="region" aria-label="学年列表，可横向滚动" tabindex="0">
+      <table class="data-table settings-table"><caption>全部学年 · 截止时间均为 UTC</caption>
+        <thead><tr><th scope="col">学年名称</th><th scope="col">成果有效日期</th><th scope="col">申报截止时间</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+        <tbody>{% for year in years %}<tr>
+          <td>{{ year.name }}</td><td>{{ year.start_date }} 至 {{ year.end_date }}</td>
+          <td>{% if let Some(deadline) = year.deadline %}<time datetime="{{ deadline.to_rfc3339() }}">{{ deadline.format("%Y-%m-%d %H:%M:%S UTC") }}</time>{% else %}未设置{% endif %}</td>
+          <td>{% if year.is_active %}<span class="status-badge status-approved">当前学年</span>{% else %}<span class="status-badge status-pending">未激活</span>{% endif %}</td>
+          <td><div class="settings-row-actions"><a href="/admin/settings?edit={{ year.id }}#year-form" aria-label="编辑{{ year.name }}">编辑</a>
+          {% if !year.is_active %}<form action="/admin/years/{{ year.id }}/activate" method="post" data-admin-form><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-secondary" type="submit" aria-label="激活{{ year.name }}">激活</button></form>{% endif %}</div></td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>{% endif %}
+  </section>
+  <div class="settings-grid admin-section">
+    <section class="panel settings-panel" id="year-form" aria-labelledby="year-form-heading">
+      <h2 id="year-form-heading">{% if editor.id.is_some() %}编辑学年{% else %}新建学年{% endif %}</h2>
+      <p class="helper">日期范围包含首尾两天；说明显示在该学年开放时的学生首页。</p>
+      <form action="{{ editor.action() }}" method="post" class="stack-form" data-admin-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="field"><label for="year-name">学年名称<span class="required">*</span></label>
+          <input id="year-name" name="name" value="{{ editor.fields.name }}" maxlength="40" required {% if editor.errors.contains_key("name") %}aria-invalid="true" aria-describedby="year-name-error"{% endif %}>
+          {% if let Some(error) = editor.errors.first("name") %}<p id="year-name-error" class="field-error">{{ error }}</p>{% endif %}
+        </div>
+        <div class="settings-date-grid">
+          <div class="field"><label for="year-start_date">开始日期<span class="required">*</span></label>
+            <input type="date" id="year-start_date" name="start_date" value="{{ editor.fields.start_date }}" min="0001-01-01" max="9999-12-31" required {% if editor.errors.contains_key("start_date") %}aria-invalid="true" aria-describedby="year-start_date-error"{% endif %}>
+            {% if let Some(error) = editor.errors.first("start_date") %}<p id="year-start_date-error" class="field-error">{{ error }}</p>{% endif %}
+          </div>
+          <div class="field"><label for="year-end_date">结束日期<span class="required">*</span></label>
+            <input type="date" id="year-end_date" name="end_date" value="{{ editor.fields.end_date }}" min="0001-01-01" max="9999-12-31" required {% if editor.errors.contains_key("end_date") %}aria-invalid="true" aria-describedby="year-end_date-error"{% endif %}>
+            {% if let Some(error) = editor.errors.first("end_date") %}<p id="year-end_date-error" class="field-error">{{ error }}</p>{% endif %}
+          </div>
+        </div>
+        <div class="field"><label for="year-deadline">申报截止时间（UTC，选填）</label>
+          <input type="datetime-local" id="year-deadline" name="deadline" value="{{ editor.fields.deadline }}" step="any" aria-describedby="year-deadline-help{% if editor.errors.contains_key("deadline") %} year-deadline-error{% endif %}" {% if editor.errors.contains_key("deadline") %}aria-invalid="true"{% endif %}>
+          <p id="year-deadline-help" class="helper">北京时间减去 8 小时即为 UTC。留空表示不设截止时间；截止后禁止新申报和无材料声明，已有待审核或需补充材料的申报仍可修改。</p>
+          {% if let Some(error) = editor.errors.first("deadline") %}<p id="year-deadline-error" class="field-error">{{ error }}</p>{% endif %}
+        </div>
+        <div class="field"><label for="year-announcement">首页说明（选填）</label>
+          <textarea id="year-announcement" name="announcement" rows="5" maxlength="4000" aria-describedby="year-announcement-help{% if editor.errors.contains_key("announcement") %} year-announcement-error{% endif %}" {% if editor.errors.contains_key("announcement") %}aria-invalid="true"{% endif %}>{{ editor.fields.announcement }}</textarea>
+          <p id="year-announcement-help" class="helper">最多 4000 个字符。</p>
+          {% if let Some(error) = editor.errors.first("announcement") %}<p id="year-announcement-error" class="field-error">{{ error }}</p>{% endif %}
+        </div>
+        <div class="form-actions"><button type="submit" class="button button-primary">{% if editor.id.is_some() %}保存学年{% else %}创建学年{% endif %}</button>{% if editor.id.is_some() %}<a class="button button-secondary" href="/admin/settings#year-form">取消编辑</a>{% endif %}</div>
+      </form>
+    </section>
+    <section class="panel settings-panel" aria-labelledby="class-code-heading">
+      <h2 id="class-code-heading">班级口令</h2>
+      <form action="/admin/settings/class-code" method="post" class="stack-form" data-admin-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="field"><label for="class_access_code">新班级口令<span class="required">*</span></label>
+          <input type="password" id="class_access_code" name="class_access_code" autocomplete="new-password" maxlength="256" required aria-describedby="class-code-help{% if code_errors.contains_key("class_access_code") %} class-code-error{% endif %}" {% if code_errors.contains_key("class_access_code") %}aria-invalid="true"{% endif %}>
+          <p id="class-code-help" class="helper">1-256 个字符，不能全为空白。更新后新口令立即生效，保存后不会显示，请自行妥善保存。</p>
+          {% if let Some(error) = code_errors.first("class_access_code") %}<p id="class-code-error" class="field-error">{{ error }}</p>{% endif %}
+        </div>
+        <div class="form-actions"><button type="submit" class="button button-primary">更新班级口令</button></div>
+      </form>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin-forms.js" defer></script>{% endblock %}

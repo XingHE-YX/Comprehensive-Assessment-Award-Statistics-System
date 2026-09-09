@@ -43,6 +43,14 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 
 - `docker compose config` could not execute because Docker is absent on this development machine. Keep that result separate from successful application checks; Compose syntax and deployment remain unverified until the runtime and Task 10 files exist.
 
+## 2026-09-10 — Task 8
+
+- Deadline regression: the no-material declaration branch returned 303 after the admin set a past cutoff, while result submission correctly returned 422. Apply the shared deadline validation to both new-submission paths; existing editable submissions remain exempt as specified by PRD.
+- Numbering regression: two academic-year records ending in the same calendar year each started at sequence 1, causing a unique-number database failure (500). Allocate under the write lock by the public four-digit year prefix across all records, not by the internal academic-year id.
+- Editable display names are unsafe storage keys. A valid name such as a slash-separated academic year passed settings validation but caused attachment uploads to return 400. Use immutable `year-<id>` directories for new files; preserve protected cold lookup of legacy directories so renaming never loses access to historical files.
+- Rechecking settings only before parsing an upload allows a concurrent activation/deadline/date edit to be bypassed. After multipart parsing, acquire the write lock and reload the active year before validation and persistence for both results and declarations. A real `Expect: 100-continue` request provides a deterministic regression boundary without sleeps.
+- Build failure E0425 during the repository transaction refactor came from a broad replacement of `fetch_one(pool)` that also changed an unrelated count query to an out-of-scope `connection`. Restrict executor substitutions to the function being refactored and inspect the complete diff before building.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

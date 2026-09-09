@@ -14,6 +14,7 @@ impl SettingsRepo {
     }
 
     pub async fn set(pool: &SqlitePool, key: &str, value: &str) -> Result<(), sqlx::Error> {
+        let mut transaction = pool.begin().await?;
         sqlx::query(
             "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
@@ -21,8 +22,9 @@ impl SettingsRepo {
         .bind(key)
         .bind(value)
         .bind(Utc::now())
-        .execute(pool)
+        .execute(&mut *transaction)
         .await?;
+        transaction.commit().await?;
         Ok(())
     }
 }

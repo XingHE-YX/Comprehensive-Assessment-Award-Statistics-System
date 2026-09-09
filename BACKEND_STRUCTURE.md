@@ -154,6 +154,16 @@ Dashboard filters are `academic_year_id`, `name`, `student_no`, `category`, and 
 
 Counts by status and approved score totals use the same selected submissions as the table. No-material declarations have no category/status; their count applies only year/name/student-number filters, as stated beside the counters.
 
+### Academic-year and class-code settings
+
+`GET /admin/settings?edit=<id>` prefills the selected year; omitting `edit` shows the create form. All mutation routes above use POST and redirect with a fixed success notice. Validation failures return 422 with retained non-secret fields, field errors and a summary. Missing years return 404; malformed extraction returns a safe Chinese 400. SQLite busy/locked settings writes return an inline 409 and do not claim a save.
+
+Year names are trimmed, unique and 1-40 characters, with no control characters. Dates must be valid `YYYY-MM-DD` values (years 0001-9999), with end >= start. Announcement text is optional, trimmed and limited to 4000 characters. Deadline is optional and independent of the achievement date range; past deadlines are allowed to close submissions. The native datetime-local input is labeled UTC, and the server interprets it as UTC. Explicit RFC 3339 offsets are also accepted and normalized to UTC; editing preserves seconds and fractional precision. An empty deadline removes the cutoff.
+
+New years are inactive. Editing metadata never changes activation. Activation acquires SQLite's write lock, closes the previous active year and activates the target in one transaction; a missing target rolls the whole operation back. Historical submissions, declarations, attachments and review data are retained for listing, query and the Task 9 export implementation.
+
+Class access codes contain 1-256 characters, cannot be entirely whitespace or contain control characters, and preserve the exact entered value. Hashing runs on a blocking worker before a transactional settings update. Neither the submitted code nor the hash is rendered. The new hash applies to the next access verification; existing short-lived submission sessions retain their original scope until expiry or a year switch.
+
 ## 6. Authentication and authorization
 
 ### Admin
@@ -174,7 +184,9 @@ Every state-changing form receives a per-session random CSRF token. The token is
 
 ## 7. Validation and storage rules
 
-Validation is shared by create and update paths. Date, category, conditional fields, attachment count/size/type, score, and text lengths are checked server-side. Uploads stream to a temporary file, validate byte count and declared/guessed MIME, then atomically move to the year/submission directory with a random filename. Static file serving never mounts `UPLOAD_DIR`.
+Validation is shared by create and update paths. Date, category, conditional fields, attachment count/size/type, score, and text lengths are checked server-side. Uploads stream to a temporary file, validate byte count and declared/guessed MIME, then atomically move to `UPLOAD_DIR/year-<academic_year_id>/<submission_no>/` with a random filename. New uploads use immutable year identifiers so editable names (including slashes) never become paths. Legacy display-name directories remain readable through the existing protected stored-name lookup; no file migration or public path is required. Static file serving never mounts `UPLOAD_DIR`.
+
+New submission and declaration writes acquire the database write lock after multipart parsing, reload the active year, check the session's year and validate current settings before persistence. Settings cannot change between that validation and commit. Submission sequence allocation uses the four-digit public ending-year prefix across all academic-year records, so years with the same end year cannot create duplicate numbers.
 
 Student updates validate dates against the record's original academic year. Following PRD section 6, the deadline applies to new submissions only. Existing attachments count toward the 1-10 limit and do not need to be re-uploaded. Student update transactions condition their first write on editable status, then recount attachments before saving additional files. Private student/admin HTML and attachment responses use `Cache-Control: no-store`; attachments also use `X-Content-Type-Options: nosniff`.
 

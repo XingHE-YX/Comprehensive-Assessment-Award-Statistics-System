@@ -38,5 +38,5 @@ pub fn generate_edit_code() -> String {
 }
 
 pub fn generate_submission_no(year: &AcademicYear, sequence: u64) -> String {
-    format!("ZC{}-{sequence:06}", year.end_date.year())
+    format!("ZC{:04}-{sequence:06}", year.end_date.year())
 }

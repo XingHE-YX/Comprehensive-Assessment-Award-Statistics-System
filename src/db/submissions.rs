@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{Datelike, NaiveDate, Utc};
 use serde_json::Value;
 use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
 
@@ -33,6 +33,23 @@ pub struct SubmissionFilter {
 pub struct SubmissionRepo;
 
 impl SubmissionRepo {
+    /// Call under the submission transaction's write lock. Academic years can
+    /// share an ending year, so sequence allocation must use the public prefix.
+    pub async fn next_number(
+        connection: &mut SqliteConnection,
+        year: &crate::domain::AcademicYear,
+    ) -> Result<String, sqlx::Error> {
+        let sequence: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(CAST(substr(submission_no, 8) AS INTEGER)), 0) + 1 FROM submissions WHERE substr(submission_no, 3, 4) = ?",
+        )
+        .bind(format!("{:04}", year.end_date.year()))
+        .fetch_one(connection).await?;
+        if sequence > 999_999 {
+            return Err(sqlx::Error::protocol("submission sequence exhausted"));
+        }
+        Ok(crate::auth::generate_submission_no(year, sequence as u64))
+    }
+
     pub async fn update_student(
         connection: &mut SqliteConnection,
         id: i64,

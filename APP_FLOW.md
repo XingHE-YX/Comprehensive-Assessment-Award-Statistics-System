@@ -63,8 +63,8 @@ Steps:
 
 1. Parse all text fields and multipart parts with a hard request body limit.
 2. Re-check the student session, active year, deadline, date range, common fields, category enum, conditional category fields, file count, file sizes, MIME types, and extensions.
-3. Hash a generated edit code and create a unique submission number inside one database transaction.
-4. Stream each file to `UPLOAD_DIR/<year>/<submission_no>/<random-name>`, then insert attachment metadata in the same transaction. Remove partial files if the transaction fails.
+3. Acquire the database write lock after parsing, reload the active year and repeat the session-year, deadline and date-range checks before persistence. Hash a generated edit code and allocate a unique submission number by its ending-year prefix across all academic-year records in this transaction.
+4. Stream each file to `UPLOAD_DIR/year-<academic_year_id>/<submission_no>/<random-name>`, then insert attachment metadata in the same transaction. Remove partial files if the transaction fails.
 5. Commit and log the submission number only.
 6. Redirect to `/success/<submission_no>` with a short-lived receipt session.
 
@@ -79,7 +79,7 @@ Trigger: The student selects No and confirms.
 Steps:
 
 1. Validate name and student number.
-2. Upsert the active year and student identity in `student_declarations`.
+2. Acquire the database write lock, reload the active year, check session scope and the current deadline, then upsert the active year and student identity in `student_declarations` in that transaction.
 3. Do not create a submission or attachment.
 4. Redirect to a confirmation page with a link to submit a result later.
 
@@ -208,20 +208,20 @@ Success state: The new status, note, and score are visible immediately.
 
 Error state: Invalid score or missing Approved score returns the form with a Chinese error.
 
-## Page: Admin Settings (`GET/POST /admin/settings`)
+## Page: Admin Settings (`GET /admin/settings`)
 
 Trigger: The administrator opens Settings.
 
 Steps:
 
 1. List all academic years and identify the sole active year.
-2. Allow create, edit, and activate operations through POST forms.
-3. Allow class access code replacement; hash before writing and never display the old or new plain code after submission.
+2. Allow create (`POST /admin/years`), edit (`POST /admin/years/:id`), and activate (`POST /admin/years/:id/activate`) operations through separate POST forms. The optional `edit` query on Settings prefills the editor. New years are inactive; metadata edits preserve activation. Activation is transactional and retains the previous active year if it fails. Names, dates, optional deadline and announcement are editable. The deadline input explicitly uses UTC and can be cleared; it is independent of the achievement date range.
+3. Allow class access code replacement (`POST /admin/settings/class-code`); require 1-256 characters, reject entirely blank/control-character values, hash the exact entered value before writing, and never display the old or new plain code or stored hash after submission. The next access verification uses the replacement hash; existing short-lived sessions keep their scope.
 4. Keep historical submissions available after year changes.
 
 Success state: Settings changes apply to the next request without restart.
 
-Error state: Invalid date ordering, overlapping activation transaction, or empty code returns an inline Chinese error.
+Error state: Invalid dates/order, duplicate year name, invalid deadline, overlong text or blank code returns inline Chinese field errors with a summary. Retain non-secret editor values; always clear the code input. A concurrent database lock returns an inline conflict notice without changing settings.
 
 ## Page: Admin Export (`GET /admin/export.xlsx`)
 

@@ -21,10 +21,11 @@ pub async fn update_student(
     }
     let existing = AttachmentRepo::count_in_transaction(&mut transaction, submission.id).await?;
     validate_uploads_with_existing(&uploads, existing as usize).map_err(AppError::Validation)?;
+    let year_directory = crate::storage::academic_year_directory(year.id);
     let stored = state
         .storage
         .save_many(
-            &year.name,
+            &year_directory,
             &submission.submission_no,
             existing as usize,
             uploads,
@@ -41,7 +42,11 @@ pub async fn update_student(
         for item in &stored {
             if state
                 .storage
-                .remove_for_submission(&year.name, &submission.submission_no, &item.stored_name)
+                .remove_for_submission(
+                    &year_directory,
+                    &submission.submission_no,
+                    &item.stored_name,
+                )
                 .await
                 .is_err()
             {

@@ -1,0 +1,136 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
+const { randomBytes } = require("node:crypto");
+const { chromium } = require(process.env.ZONGCE_PLAYWRIGHT_MODULE || "playwright");
+const password = randomBytes(24).toString("hex");
+const output = process.env.ZONGCE_SCREENSHOTS || "/tmp/zongce-settings-screenshots";
+fs.mkdirSync(output, { recursive: true });
+const preview = spawn(process.env.ZONGCE_PREVIEW_BIN || "target/debug/examples/admin_preview", [], {
+  env: { ...process.env, ZONGCE_PREVIEW_PASSWORD: password }, stdio: ["ignore", "pipe", "pipe"],
+});
+const baseUrl = new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => reject(new Error("Preview did not start")), 15000);
+  let stdout = "";
+  preview.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    const match = stdout.match(/Admin preview: (http:\/\/127\.0\.0\.1:\d+)/);
+    if (match) { clearTimeout(timeout); resolve(match[1]); }
+  });
+  preview.on("error", (error) => { clearTimeout(timeout); reject(error); });
+  preview.on("exit", (code) => { clearTimeout(timeout); reject(new Error("Preview exited: " + code)); });
+});
+(async () => {
+  let browser;
+  let classCode = "preview-only";
+  try {
+    const base = await baseUrl;
+    browser = await chromium.launch({ channel: "chrome", headless: true });
+    for (const [width,height] of [[320,568],[390,844],[768,1024],[1440,900]]) {
+      const adminContext = await browser.newContext({ viewport:{width,height}, javaScriptEnabled:width!==768 });
+      const studentContext = await browser.newContext({ viewport:{width,height} });
+      const admin = await adminContext.newPage(), student = await studentContext.newPage();
+      admin.setDefaultTimeout(8000); student.setDefaultTimeout(8000);
+      const errors=[]; admin.on("pageerror",error=>errors.push(error.message));
+      const checkPage = async () => {
+        assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"Page overflow at "+width);
+        const ids = await admin.locator("[id]").evaluateAll(nodes=>nodes.map(node=>node.id));
+        assert.equal(new Set(ids).size,ids.length,"Duplicate input/error IDs");
+      };
+      const saved = async (kind) => admin.waitForURL(url=>url.pathname==="/admin/settings" && url.searchParams.get("saved")===kind);
+      const postResponse = (suffix) => admin.waitForResponse(r=>r.url().endsWith(suffix) && r.request().method()==="POST");
+      const createYear = async (name) => {
+        await admin.goto(base+"/admin/settings#year-form");
+        await admin.locator("#year-name").fill(name);
+        await admin.locator("#year-start_date").fill("2025-08-31");
+        await admin.locator("#year-end_date").fill("2026-08-28");
+        await admin.locator("#year-announcement").fill("设置流程说明 <script>不可执行</script>");
+        await admin.getByRole("button",{name:"创建学年",exact:true}).click(); await saved("year");
+        const row = admin.locator("tbody tr").filter({has:admin.getByRole("cell",{name,exact:true})});
+        assert.equal(await row.locator(".status-badge").innerText(),"未激活");
+        return row;
+      };
+      await admin.goto(base+"/admin/settings");
+      assert(admin.url().endsWith("/admin/login"));
+      await admin.locator("#username").fill("preview-admin"); await admin.locator("#password").fill(password);
+      await admin.getByRole("button",{name:"登录",exact:true}).click(); await admin.waitForURL(base+"/admin");
+      await admin.getByRole("link",{name:"学年设置",exact:true}).click();
+      await checkPage();
+      const yearName="浏览器测试学年-"+width;
+      const row = await createYear(yearName);
+      const editHref = await row.getByRole("link",{name:"编辑"+yearName,exact:true}).getAttribute("href");
+      const yearId = new URL(editHref,base).searchParams.get("edit");
+      await row.getByRole("button",{name:"激活"+yearName,exact:true}).click(); await saved("active");
+      assert.equal(await admin.locator(".status-approved").count(),1);
+      await checkPage();
+      await student.goto(base);
+      assert((await student.locator("main").innerText()).includes(yearName));
+      assert.equal(await student.locator("main script").count(),0);
+      await student.locator("#access-code").fill(classCode);
+      await student.getByRole("button",{name:"继续填写"}).click(); await student.waitForURL("**/submit");
+      await student.locator("#student_name").fill("设置流程测试"); await student.locator("#student_no").fill("SETTINGS-"+width);
+      await student.locator("#result_name").fill("历史材料保留测试"); await student.locator("#obtained_date").fill("2026-04-02");
+      await student.locator("#category").selectOption("academic_competition");
+      await student.locator("#academic_competition-competition_name").fill("设置竞赛");
+      for (const [key,value] of [["competition_type","A"],["level","国家"],["award_level","一等奖"]]) await student.locator("#academic_competition-"+key).selectOption(value);
+      await student.locator("#attachments").setInputFiles({name:"proof.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4\n% fixture\n%%EOF")});
+      await student.getByRole("button",{name:"提交申报",exact:true}).click(); await student.waitForURL("**/success/ZC*");
+      const number=await student.locator(".submission-number").innerText(), editCode=await student.locator("#edit-code").innerText();
+      await student.goto(base+"/query");
+      await student.locator("#submission-no").fill(number); await student.locator("#edit-code").fill(editCode);
+      await student.getByRole("button",{name:"查询申报"}).click(); await student.waitForURL("**/query/ZC*");
+      const detailUrl=student.url();
+      const attachmentHref=await student.locator(".attachment-list a").first().getAttribute("href");
+      await admin.goto(base+editHref);
+      assert.equal(await admin.locator("#year-name").inputValue(),yearName);
+      await admin.locator("#year-end_date").fill("2025-08-30");
+      let response=postResponse("/admin/years/"+yearId);
+      await admin.getByRole("button",{name:"保存学年",exact:true}).click(); assert.equal((await response).status(),422);
+      assert.equal(await admin.locator("#year-end_date").getAttribute("aria-invalid"),"true");
+      assert.equal(await admin.locator("#year-name").inputValue(),yearName);
+      await checkPage(); await admin.screenshot({path:path.join(output,width+"-date-error.png"),fullPage:true});
+      await admin.locator("#year-end_date").fill("2026-08-28");
+      await admin.locator("#year-deadline").fill("2000-01-01T00:00");
+      await admin.getByRole("button",{name:"保存学年",exact:true}).click(); await saved("year");
+      await student.goto(base+"/submit");
+      const studentToken=await student.locator('[name="csrf_token"]').inputValue();
+      const denied=await studentContext.request.post(base+"/submit",{multipart:{csrf_token:studentToken,student_name:"测试",student_no:"SETTINGS",has_result:"no",no_result_confirm:"yes"}});
+      assert.equal(denied.status(),422); assert((await denied.text()).includes("截止"));
+      await admin.goto(base+editHref);
+      assert((await admin.locator("#year-deadline").inputValue()).startsWith("2000-01-01T00:00"));
+      await admin.locator("#year-deadline").fill("");
+      await admin.locator("#year-name").fill("历史学年-"+width);
+      await admin.getByRole("button",{name:"保存学年",exact:true}).click(); await saved("year");
+      const nextName="下一学年-"+width;
+      const nextRow=await createYear(nextName);
+      await nextRow.getByRole("button",{name:"激活"+nextName,exact:true}).click(); await saved("active");
+      await admin.screenshot({path:path.join(output,width+"-settings.png"),fullPage:true}); await checkPage();
+      await student.goto(base+"/submit"); assert(new URL(student.url()).pathname==="/");
+      await student.goto(detailUrl); assert.equal(await student.locator("h1").innerText(),"申报详情");
+      assert.equal((await studentContext.request.get(base+attachmentHref)).status(),200);
+      await admin.goto(base+"/admin?academic_year_id="+yearId);
+      assert((await admin.locator("tbody").innerText()).includes(number));
+      await admin.getByRole("link",{name:"学年设置",exact:true}).click();
+      await admin.locator("#class_access_code").fill("   ");
+      response=postResponse("/admin/settings/class-code");
+      await admin.getByRole("button",{name:"更新班级口令",exact:true}).click(); assert.equal((await response).status(),422);
+      assert.equal(await admin.locator("#class_access_code").inputValue(),""); await checkPage();
+      const nextCode=randomBytes(16).toString("hex");
+      await admin.locator("#class_access_code").fill(nextCode);
+      await admin.getByRole("button",{name:"更新班级口令",exact:true}).click(); await saved("code");
+      assert.equal(await admin.locator("#class_access_code").inputValue(),""); assert(!(await admin.content()).includes(nextCode));
+      await student.goto(base); await student.locator("#access-code").fill(classCode);
+      const wrong=student.waitForResponse(r=>r.url().endsWith("/access") && r.request().method()==="POST");
+      await student.getByRole("button",{name:"继续填写"}).click(); assert.equal((await wrong).status(),400);
+      await student.locator("#access-code").fill(nextCode); await student.getByRole("button",{name:"继续填写"}).click(); await student.waitForURL("**/submit");
+      classCode=nextCode;
+      assert.deepEqual(errors,[]);
+      await adminContext.close(); await studentContext.close();
+      console.log("PASS settings "+width+"x"+height+(width===768?" (admin JavaScript disabled)":""));
+    }
+  } finally {
+    if(browser) await browser.close();
+    preview.kill("SIGINT");
+  }
+})().catch(error=>{console.error(error);process.exitCode=1;});

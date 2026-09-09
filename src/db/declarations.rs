@@ -35,6 +35,24 @@ impl DeclarationRepo {
         student_name: &str,
         student_no: &str,
     ) -> Result<StudentDeclaration, sqlx::Error> {
+        let mut transaction = pool.begin().await?;
+        let declaration = Self::upsert_in_transaction(
+            &mut transaction,
+            academic_year_id,
+            student_name,
+            student_no,
+        )
+        .await?;
+        transaction.commit().await?;
+        Ok(declaration)
+    }
+
+    pub async fn upsert_in_transaction(
+        connection: &mut sqlx::SqliteConnection,
+        academic_year_id: i64,
+        student_name: &str,
+        student_no: &str,
+    ) -> Result<StudentDeclaration, sqlx::Error> {
         let now = Utc::now();
         sqlx::query(
             "INSERT INTO student_declarations
@@ -48,7 +66,7 @@ impl DeclarationRepo {
         .bind(student_no)
         .bind(now)
         .bind(now)
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
         sqlx::query(
             "SELECT * FROM student_declarations
@@ -57,7 +75,7 @@ impl DeclarationRepo {
         .bind(academic_year_id)
         .bind(student_name)
         .bind(student_no)
-        .fetch_one(pool)
+        .fetch_one(connection)
         .await
         .and_then(row_to_declaration)
     }

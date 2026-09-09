@@ -1,5 +1,5 @@
 Project: 综测成果申报系统（单班级版）
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 Current status:
 - Project specification documents have been created.
@@ -14,6 +14,7 @@ Current status:
 - Task 5 is complete: student home/access/session flow, multipart submission, no-material declarations, transactional submission/attachment persistence, receipt page, seven category form sections, responsive student UI, and submission-flow integration tests are implemented.
 - Task 6 is complete: query credentials, single-submission verified sessions, detail/edit pages, atomic student updates, existing/new attachment limits, protected attachment responses, shared forms, and browser regression coverage are implemented.
 - Task 7 is complete: configured administrator login/logout, protected dashboard/detail/review routes, literal keyword and enum/year filters, filter-aware counts, safe attachment previews, score/status/note validation, and responsive admin pages are implemented.
+- Task 8 is complete: administrator academic-year creation/editing/atomic activation, immediate class-code replacement, shared validation, responsive settings forms and history-preserving submission/storage integration are implemented.
 
 Completed documents:
 - PRD.md
@@ -25,7 +26,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Task 8: implement academic-year and class-code settings. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work; the existing task1-scaffold worktree is preserved.
+- Task 9: implement the two-sheet Excel export with fixed expanded columns and historical-year filters. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work; the existing task1-scaffold worktree is preserved.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -75,3 +76,17 @@ Task 7 delivery notes (2026-09-09):
 - Final Task 7 verification passed: cargo +1.88.0 fmt --check; cargo +1.88.0 test --test admin_flow (8 tests); cargo +1.88.0 clippy --all-targets --all-features -- -D warnings; cargo +1.88.0 test --all-targets (41 tests); git diff --check.
 - Final Playwright 1.52.0 admin and student browser regressions passed at 320x568, 390x844, 768x1024 and 1440x900. Admin coverage includes JS-disabled tablet forms, PNG/PDF authorization, score errors, needs_revision -> student amendment -> approved, student read-only result and logout. Student regression covers all seven categories and conditional branches. Mobile and desktop screenshots were inspected; no page overflow or overlapping controls was found.
 - docker compose config was attempted again and could not execute (Docker command not found). Compose/deployment files remain Task 10, and no deployment claim is made.
+
+
+Task 8 delivery notes (2026-09-10):
+- Implemented GET /admin/settings (optional edit selection), POST /admin/years, POST /admin/years/{id}, POST /admin/years/{id}/activate and POST /admin/settings/class-code. All settings writes require administrator session and CSRF; malformed inputs return safe Chinese errors. The shared admin navigation now enables Settings.
+- New years are inactive; editing never changes activation. Activation holds the SQLite write lock, closes other active years, activates the target and commits atomically. Missing targets roll back, and database lock conflicts produce an inline 409. Historical submissions, reviews, declarations and attachments are retained.
+- Shared server validation covers unique trimmed year names, canonical dates and ordering, optional UTC deadlines and announcement limits. Native datetime-local inputs explicitly use UTC; RFC 3339 offsets normalize to UTC. Deadlines can be in the past or outside the achievement range, or cleared. The editor retains ordinary values on failure. Class-code values preserve exact input, reject blank/control/overlong values, hash on a blocking worker, save transactionally and never echo the code or hash.
+- Fixed two reproduced integration defects: declarations now respect the new-submission deadline, and submission numbers allocate by the public ending-year prefix across all academic-year records so identical ending years do not collide.
+- Independent review reproduced and led to two additional fixes: new attachments use immutable year-id directories instead of editable display names, and both new-submission branches reload/validate settings under their persistence write lock after multipart parsing. This prevents settings changes during slow uploads from being bypassed. Existing editable submissions retain the PRD exception to activation/deadline restrictions.
+- Added deterministic real-HTTP concurrency coverage with Expect: 100-continue, actual SQLite lock/conflict and rollback checks, code replacement checks, historical query/attachment tests, rename-plus-upload/amendment checks, and cold storage lookup of both current and legacy directories. No dependencies or schema changes were needed; old uploads require no migration.
+- Final application checks passed: cargo +1.88.0 fmt --check; cargo +1.88.0 test --test settings (11 tests); cargo +1.88.0 clippy --all-targets --all-features -- -D warnings; cargo +1.88.0 test --all-targets (52 tests); cargo +1.88.0 build --examples; git diff --check. The isolated task worktree used the existing root target directory through CARGO_TARGET_DIR.
+- Final Playwright 1.52.0 settings, administrator-review and student regressions all passed at 320x568, 390x844, 768x1024 and 1440x900. Tablet administrator forms worked with JavaScript disabled. Covered settings errors/success, cutoff clearing, old/new code access, historical records and protected files; the student suite also covered all seven categories and conditional branches. Desktop/mobile screenshots were inspected, with no page overflow or overlapping controls.
+- Independent scoped re-review found no remaining issues; it separately passed settings and storage checks. Reproduced application errors and the E0425 compilation error/fix are recorded in lessons.md.
+- APP_FLOW.md and BACKEND_STRUCTURE.md now describe the precise settings forms, UTC policy, transaction checks and stable attachment layout. Both plan documents mark Task 8 steps complete; repeatable browser instructions are in docs/testing-admin-flow.md.
+- docker compose config was attempted and returned command not found (127). Docker is still absent, Compose files remain Task 10, and deployment is unverified. Export downloads remain Task 9; this task preserves and verifies the historical data that export will consume. Production main still needs Task 1 reconciliation.
