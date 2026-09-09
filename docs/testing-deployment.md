@@ -11,13 +11,15 @@ cargo +1.88.0 clippy --all-targets --all-features -- -D warnings
 cargo +1.88.0 test --all-targets
 python3 tests/backup.py
 python3 tests/backup_failures.py
-bash -n scripts/backup.sh tests/smoke.sh
+bash -n scripts/backup.sh scripts/check-sqlite-engine.sh tests/smoke.sh
 docker compose config --quiet
 ```
 
 Compose 检查前按 README 准备仅含公开配置的 `.env` 和含应用秘密的 `.env.production`。`--quiet` 验证配置但不打印展开后的凭据。测试数据库、上传内容及秘密文件均不得提交。
 
 `health` 启动真实二进制，检查配置拒绝、stdin 哈希工具、健康接口及 SIGTERM 退出；`security` 检查安全 Cookie、CSRF、中文错误、声明长度与实际流式请求体上限、请求标识和日志脱敏。既有集成测试继续覆盖 SQL 参数绑定、模板转义、附件路径和权限、审核与导出。
+
+Dockerfile 校验 SQLite 官方源码 SHA-256，并静态链接规范要求的 `3.46.1`。构建中 `scripts/check-sqlite-engine.sh` 启动确切 release 程序，读取 SQLx 的 `database_ready.sqlite_version` 事件作为强制门禁。发行版的 `sqlite3 --version` 仅代表命令行工具。未配置外部链接的本机 Cargo 默认使用锁定驱动内置的 `3.46.0`；生产等价验收使用该镜像，原生版本一致性配置见 TECH_STACK。
 
 `tests/backup.py` 调用真实脚本与 SQLite CLI，检查 WAL 中已提交数据、附件字节、恢复后查询、九次备份后的七套保留、坏数据库、缺少附件目录和不合法保留数量。`tests/backup_failures.py` 用受控 Docker 状态和命令故障注入，覆盖重启中/已停止容器、失败后服务恢复、路径脱敏与清理错误退出；其 SQLite 和文件操作仍为真实执行。备份只在完整快照发布成功后轮转；失败不得破坏已有完整副本。
 
@@ -44,5 +46,6 @@ docker compose up -d --no-build --wait
 - 完整重启宿主虚拟机后，Docker `27.5.1` 和两个服务自动恢复，相同申报、附件与导出检查再次通过。另创建真实重启循环容器，先确认 Docker 状态为 `restarting`，再验证修正后的脚本能停稳该容器、保存完整数据库快照、恢复服务运行意图并清理锁；测试容器随后正常移除。
 - 既有管理员、设置、学生及七类别导出浏览器套件通过临时入口适配器启动真实 main，顺序通过 `320×568`、`390×844`、`768×1024`、`1440×900`；平板管理员表单禁用 JavaScript。新增中文 403/404 页面也通过四尺寸检查，手机和桌面截图已检查。未发现页面横向溢出或控件重叠。
 - 最终 Rust 全量检查为 74 项通过；格式、严格 Clippy、真实 WAL/恢复/保留检查、八种备份故障场景、脚本语法和 Compose 配置检查通过。审查发现的 Argon2 版本/盐约束、重启状态处理、错误脱敏与清理退出问题均已修正并通过定向复审。
+- 最后复审修正了驱动自带 SQLite 与生产规范的版本差异，Cargo 依赖和锁文件未变。实际 amd64 release 构建门禁与运行容器 SQLx 事件均确认 `3.46.1`；该镜像重新通过 HTTPS 完整冒烟、旧申报/附件兼容及脱敏检查。使用该引擎再做成套备份恢复后，旧记录与新冒烟记录均可重新查询、下载原附件和导出。最终定向复审通过，无未解决的重要问题。
 
 本地 TLS 验收使用隔离 CA，没有申请实际生产域名证书。上线时仍需按 README 配置真实 DNS、开放 80/443，并检查公网证书签发。日常一致性备份会短暂停止 web；应安排维护窗口。浏览器工具和 Colima 都属于开发验收工具，不进入生产镜像。
