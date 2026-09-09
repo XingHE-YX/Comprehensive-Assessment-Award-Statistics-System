@@ -20,6 +20,7 @@ if (form) {
       const active = section.dataset.categorySection === selected;
       section.hidden = !active;
       setDisabled(section, !active);
+      section.querySelectorAll("[data-required]").forEach((control) => { control.required = active; });
     });
 
     const articleNature = form.querySelector("#article-nature")?.value || "";
@@ -47,6 +48,7 @@ if (form) {
     if (noResultConfirm) noResultConfirm.disabled = hasResult;
     if (category) category.disabled = !hasResult;
     if (hasResult) syncCategory();
+    else sections.forEach((section) => setDisabled(section, true));
   };
 
   category?.addEventListener("change", syncCategory);
@@ -62,3 +64,12 @@ if (form) {
   });
   syncResultChoice();
 }
+
+document.querySelectorAll("[data-copy-target]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const target = document.getElementById(button.dataset.copyTarget);
+    if (!target) return;
+    try { await navigator.clipboard.writeText(target.textContent || ""); button.textContent = "已复制"; }
+    catch (_) { button.textContent = "请手动复制"; }
+  });
+});

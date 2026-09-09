@@ -20,6 +20,14 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - Keep category JSON keys in one public constants module and consume those constants from the validators; this prevents schema drift and keeps strict Clippy checks clean before route and export layers use the keys.
 - Conditional category fields must be validated from the selected discriminator value, while unrelated category fields remain ignored so the shared submission payload can safely carry browser form data.
 
+## 2026-09-09
+
+- Axum 0.8 route captures use `{name}` syntax; the older `:name` form panics during router construction.
+- Integration tests using `axum-test` must enable `save_cookies()` when the behavior spans CSRF and session-backed redirects.
+- A successful receipt should clear its short-lived session values after rendering so the edit code is not replayable through repeated receipt requests.
+- The `/access` route contract uses `400` for an incorrect class code (while credential-protected query/admin routes use `401`); keep route-specific status behavior aligned with `BACKEND_STRUCTURE.md`.
+- `tower_sessions::Session::remove` cannot infer its deserialization type from a discarded result; use explicit types such as `remove::<String>(...)` when clearing typed session values.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

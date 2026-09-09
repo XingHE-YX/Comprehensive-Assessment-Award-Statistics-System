@@ -71,11 +71,11 @@ Files: `src/domain/category.rs`, `src/validation/*`, `tests/validation.rs`。
 
 Files: `src/routes/student.rs`, `templates/student/{home,submit,success}.html`, `static/js/submission-form.js`, `static/css/app.css`, `tests/submission_flow.rs`。
 
-- [ ] 写错误口令、无 active year、截止后、合法 multipart、无材料声明和编号唯一测试。
-- [ ] 实现 `/`、`/access`、`/submit`、`/success/:submission_no`。
-- [ ] 在一个事务中创建 submission、附件和哈希修改码；失败时清理临时文件。
-- [ ] 原生 JS 按类别显示条件字段并禁用隐藏输入；按 `FRONTEND_GUIDELINES.md` 完成手机布局。
-- [ ] 运行 `cargo test --test submission_flow`。
+- [x] 写错误口令、无 active year、截止后、合法 multipart、无材料声明和编号唯一测试。
+- [x] 实现 `/`、`/access`、`/submit`、`/success/:submission_no`。
+- [x] 在一个事务中创建 submission、附件和哈希修改码；失败时清理临时文件。
+- [x] 原生 JS 按类别显示条件字段并禁用隐藏输入；按 `FRONTEND_GUIDELINES.md` 完成手机布局。
+- [x] 运行 `cargo test --test submission_flow`。
 
 完成条件：学生可完成一项成果提交并在成功页看到明文修改码；无材料声明不创建附件。
 

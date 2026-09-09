@@ -1,5 +1,5 @@
 Project: 综测成果申报系统（单班级版）
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 Current status:
 - Project specification documents have been created.
@@ -11,7 +11,7 @@ Current status:
 - Task 2 is complete: SQLite migrations, domain models, repositories, foreign-key/unique constraints, default academic-year seed, and startup database initialization are implemented.
 - Task 3 is complete: Argon2id secret helpers, random edit/submission identifiers, scoped sessions with expiry, CSRF helpers, secure private cookies, protected attachment storage, path/type/size/count validation, and cleanup on batch failure are implemented.
 - Task 4 is complete: the seven category schemas, shared submission/declaration/score/deadline validation, attachment validation integration, category JSON keys, and validation tests are implemented.
-- The student home and submission templates, responsive CSS, and native category-aware submission form script are scaffolded for Task 5; HTTP routes and submission persistence remain to be implemented.
+- Task 5 is complete: student home/access/session flow, multipart submission, no-material declarations, transactional submission/attachment persistence, receipt page, seven category form sections, responsive student UI, and submission-flow integration tests are implemented.
 
 Completed documents:
 - PRD.md
@@ -23,7 +23,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- Implement Task 1's HTTP/config/error baseline before starting Task 4 validation and page work.
+- Task 6: implement query, edit, and protected attachment access. The production startup/router configuration from Task 1 still needs to be reconciled before deployment work.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -40,9 +40,17 @@ Verification:
 - `cargo +1.88.0 test --all-targets` passed after Task 4 changes (15 tests).
 - `cargo +1.88.0 fmt --check` passed after Task 4 changes.
 - `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed after Task 4 changes.
+- `cargo +1.88.0 test --test submission_flow` passed (5 tests).
+- `cargo +1.88.0 test --all-targets` passed after Task 5 changes (20 tests across the existing suite; submission-flow coverage contains 5 tests).
+- `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings` passed after Task 5 changes.
+- `cargo +1.88.0 fmt --check` passed after Task 5 changes.
+- `cargo +1.88.0 fmt && cargo +1.88.0 fmt --check && cargo +1.88.0 test --all-targets && cargo +1.88.0 clippy --all-targets --all-features -- -D warnings && git diff --check` passed after final Task 5 verification; submission-flow coverage includes deadline rejection and distinct sequential submission numbers.
+- Final receipt-session ordering fix revalidated with `cargo +1.88.0 fmt`, `cargo +1.88.0 test --all-targets`, `cargo +1.88.0 clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
 
 Notes:
 - Do not add P1/P2 features before P0 acceptance is complete.
 - Keep this file free of credentials, access codes, edit codes, session secrets, and personal data.
 - Empty required directories contain .gitkeep so the project structure survives Git checkout.
 - The GitHub remote is `https://github.com/XingHE-YX/Comprehensive-Assessment-Award-Statistics-System.git`.
+- Task 5 uses a public `routes::build_router` with a development session key for integration tests; production startup still needs to supply the configured session secret when Task 1 startup wiring is completed.
+- Notes: 手机/桌面浏览器实测尚未进行；正式启动仍受 Task 1 未接线影响。

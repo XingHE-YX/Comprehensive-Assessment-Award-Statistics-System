@@ -8,6 +8,7 @@ use subtle::ConstantTimeEq;
 use tower_sessions::{
     Expiry, MemoryStore, Session, SessionManagerLayer,
     cookie::{Key, SameSite},
+    service::PrivateCookie,
 };
 
 use crate::{db::SubmissionRepo, domain::Submission};
@@ -21,6 +22,7 @@ pub const ADMIN_AUTHENTICATED_AT_KEY: &str = "admin_authenticated_at";
 pub const STUDENT_YEAR_ID_KEY: &str = "student_year_id";
 pub const STUDENT_EXPIRES_AT_KEY: &str = "student_expires_at";
 pub const RECEIPT_SUBMISSION_NO_KEY: &str = "receipt_submission_no";
+pub const RECEIPT_EDIT_CODE_KEY: &str = "receipt_edit_code";
 pub const RECEIPT_EXPIRES_AT_KEY: &str = "receipt_expires_at";
 pub const VERIFIED_SUBMISSION_ID_KEY: &str = "verified_submission_id";
 pub const VERIFIED_EXPIRES_AT_KEY: &str = "verified_expires_at";
@@ -87,14 +89,28 @@ pub async fn student_year_id(session: &Session) -> AuthResult<Option<i64>> {
     Ok(session.get(STUDENT_YEAR_ID_KEY).await?)
 }
 
-pub async fn establish_receipt_session(session: &Session, submission_no: &str) -> AuthResult<()> {
+pub async fn establish_receipt_session(
+    session: &Session,
+    submission_no: &str,
+    edit_code: &str,
+) -> AuthResult<()> {
     session
         .insert(RECEIPT_SUBMISSION_NO_KEY, submission_no.to_owned())
+        .await?;
+    session
+        .insert(RECEIPT_EDIT_CODE_KEY, edit_code.to_owned())
         .await?;
     session
         .insert(RECEIPT_EXPIRES_AT_KEY, Utc::now() + Duration::minutes(15))
         .await?;
     Ok(())
+}
+
+pub async fn receipt_edit_code(session: &Session) -> AuthResult<Option<String>> {
+    if !session_is_valid(session, RECEIPT_EXPIRES_AT_KEY).await? {
+        return Ok(None);
+    }
+    Ok(session.get(RECEIPT_EDIT_CODE_KEY).await?)
 }
 
 pub async fn receipt_submission_no(session: &Session) -> AuthResult<Option<String>> {
@@ -171,7 +187,7 @@ pub async fn verify_csrf_token(session: &Session, submitted: &str) -> AuthResult
 pub fn session_layer(
     secret: &[u8],
     secure: bool,
-) -> AuthResult<impl tower::Layer<axum::Router> + Clone> {
+) -> AuthResult<SessionManagerLayer<MemoryStore, PrivateCookie>> {
     let mut key_material = Vec::with_capacity(64);
     if secret.len() >= 64 {
         key_material.extend_from_slice(&secret[..64]);

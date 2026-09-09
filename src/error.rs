@@ -19,6 +19,12 @@ pub enum AppError {
     NotFound,
     #[error("无权访问")]
     Forbidden,
+    #[error("表单校验失败")]
+    Validation(crate::validation::ValidationErrors),
+    #[error("模板渲染失败")]
+    Template,
+    #[error("请求体无法解析")]
+    Multipart,
 }
 
 impl IntoResponse for AppError {
@@ -42,9 +48,15 @@ impl IntoResponse for AppError {
                 StatusCode::NOT_FOUND
             }
             Self::BadRequest => StatusCode::BAD_REQUEST,
+            Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::Multipart => StatusCode::BAD_REQUEST,
             Self::NotFound => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
-        (status, self.to_string()).into_response()
+        let message = match self {
+            Self::Validation(errors) => errors.to_string(),
+            other => other.to_string(),
+        };
+        (status, message).into_response()
     }
 }
