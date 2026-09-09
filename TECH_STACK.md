@@ -15,6 +15,10 @@
 - Compose specification: Docker Compose plugin `2.35.1` using `compose.yaml` schema `3.9` compatibility fields only where required by the plugin.
 - Reverse proxy/TLS: Caddy `2.9.1`。
 
+The canonical production Docker build compiles the official SQLite `3.46.1` archive (`sqlite-autoconf-3460100.tar.gz`, SHA256 `67d3fe6d268e6eaddcae3727fce58fcc8e9c53869bdd07a0c61e38ddf2965071`) into a private prefix and statically links SQLx through the locked driver's supported `LIBSQLITE3_SYS_USE_PKG_CONFIG=1`, `SQLITE3_LIB_DIR`, `SQLITE3_INCLUDE_DIR`, and `SQLITE3_STATIC=1` controls. It retains the driver-required compile features, including column metadata, unlock notification, thread safety, URI support and foreign keys. The image build rejects a release application whose actual SQLx startup `SELECT sqlite_version()` is not `3.46.1`, and verifies no dynamic libsqlite3 dependency.
+
+An unconfigured native `cargo build/test` uses the unchanged locked `libsqlite3-sys 0.30.1` bundled SQLite **3.46.0**. This is a native development fallback, not a change to the required production 3.46.1 baseline. The distribution's `sqlite3` CLI version is separate from the SQLx-linked engine. For native parity, build the same checksum-verified archive for the host using the Dockerfile's compile options and set the same linkage variables to that private prefix before building; use a separate Cargo target directory from the fallback build. See README for explicit application-engine verification.
+
 ## Rust dependencies
 
 ```toml

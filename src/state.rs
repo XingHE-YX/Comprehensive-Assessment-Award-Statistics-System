@@ -29,6 +29,9 @@ impl AppState {
         migrate(&db).await.map_err(sqlx::Error::protocol)?;
         seed_default_academic_year(&db).await?;
         tracing::info!(event = "migration", status = "complete");
+        let sqlite_version = crate::db::engine_version(&db).await?;
+        // Query the connected engine, not a compiled driver or external CLI version.
+        tracing::info!(event = "database_ready", sqlite_version = %sqlite_version);
         Ok(Self {
             db,
             storage: AttachmentStorage::new("uploads"),

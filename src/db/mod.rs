@@ -19,6 +19,12 @@ pub async fn readiness(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+pub async fn engine_version(pool: &SqlitePool) -> Result<String, sqlx::Error> {
+    sqlx::query_scalar("SELECT sqlite_version()")
+        .fetch_one(pool)
+        .await
+}
+
 pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!("./migrations").run(pool).await
 }

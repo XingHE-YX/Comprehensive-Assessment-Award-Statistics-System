@@ -2,6 +2,8 @@
 
 单班级、多个学年的服务端渲染应用。学生使用班级口令申报，每项成果独立获得编号和修改码；管理员审核并导出两张工作表。Rust 1.88.0 / Axum 0.8.4 / SQLite / Askama；生产仅运行 `web` 和 Caddy 2.9.1，无前端构建链。
 
+生产镜像的 SQLx 引擎固定为 SQLite **3.46.1**，由 Dockerfile 下载官方源码、核对 SHA256 后构建并静态链接。当前锁定的 Rust 驱动在未配置外部链接的本机开发构建中附带 **3.46.0**；这不是生产基线，也不能通过安装 `sqlite3` 命令行程序来改变。版本与编译选项说明见 [TECH_STACK.md](TECH_STACK.md)。
+
 ## 本地启动与首次初始化
 
 安装 Rust 1.88.0，检查版本和依赖基线见 [TECH_STACK.md](TECH_STACK.md)。本地开发另需 Python 3（标准库用于工作簿与运维验收）、SQLite CLI；生产应用本身不依赖 Python。
@@ -32,6 +34,22 @@ curl --fail http://127.0.0.1:3000/healthz
 ```
 
 健康检查返回 `ok`，同时检查数据库连接；故障返回安全的 500 页面。启动自动运行 migrations，仅空库创建 `2025-2026学年`（2025-08-31 至 2026-08-28），不会覆盖现有学年。首次到 `/admin/login` 登录，在设置页确认当前学年、日期/截止时间，并设置班级口令；初始没有可用班级口令。无需手工写 SQL 或把班级口令放入配置。班级口令和修改码均只持久化 Argon2id 哈希。
+
+启动日志中的 `database_ready` 事件包含从应用 SQLx 连接查询得到的 `sqlite_version`，不暴露数据。`scripts/check-sqlite-engine.sh` 接受应用二进制绝对路径和预期版本，用临时凭据/数据库启动该二进制并检查事件，然后优雅退出。Dockerfile 强制对最终 release 产物执行此检查，预期值为 3.46.1；它不会把外部 CLI 的版本当成应用引擎证据。
+
+若需要本机与生产引擎一致，先用 Dockerfile 相同 SHA256 和 CFLAGS 为本机编译 SQLite 3.46.1，安装到独立目录（示例 `/opt/sqlite-3.46.1`），然后：
+
+```bash
+export LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=1
+export SQLITE3_LIB_DIR=/opt/sqlite-3.46.1/lib
+export SQLITE3_INCLUDE_DIR=/opt/sqlite-3.46.1/include
+export PKG_CONFIG_PATH=/opt/sqlite-3.46.1/lib/pkgconfig
+export CARGO_TARGET_DIR=target/sqlite-3.46.1
+cargo build --locked --release
+bash scripts/check-sqlite-engine.sh "$PWD/target/sqlite-3.46.1/release/zongce-web" 3.46.1
+```
+
+本机需 C 编译工具、make、pkg-config；编译不同引擎时使用独立 target，避免混淆已有开发产物。生产仍以 Dockerfile 和其中实际 release 引擎门禁为准，Cargo.toml/Cargo.lock 不需变更。
 
 `Ctrl-C` 或 `SIGTERM` 会停止接收新连接、等待已接收请求结束并关闭连接池。会话采用内存存储，重启后需重新登录/验证；数据库、已提交成果和附件不受影响，学生用保存的编号和修改码再次查询。成功页修改码只显示一次。
 

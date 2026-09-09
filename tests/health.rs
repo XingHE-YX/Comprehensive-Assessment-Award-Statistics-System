@@ -214,6 +214,28 @@ fn production_entry_point_serves_then_shuts_down_on_sigterm() {
     for event in ["startup", "migration", "request_complete", "shutdown"] {
         assert!(logs.contains(event), "{logs}");
     }
+    let database_event = logs
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .find(|event| event["fields"]["event"] == "database_ready")
+        .expect("startup must report the engine queried through the application SQLx pool");
+    let version = database_event["fields"]["sqlite_version"].as_str().unwrap();
+    let actual_version = tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        let version: String = sqlx::query_scalar("SELECT sqlite_version()")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        pool.close().await;
+        version
+    });
+    assert_eq!(
+        version, actual_version,
+        "startup must identify the actual linked engine"
+    );
+    let parts: Vec<_> = version.split('.').collect();
+    assert_eq!(parts.len(), 3);
+    assert!(parts.iter().all(|part| part.parse::<u32>().is_ok()));
     for forbidden in [
         "SELECT",
         "CREATE TABLE",
