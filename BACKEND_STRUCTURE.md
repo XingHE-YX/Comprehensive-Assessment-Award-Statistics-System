@@ -152,7 +152,7 @@ Login is public and requires CSRF on POST. All other implemented routes below re
 
 Dashboard filters are `academic_year_id`, `name`, `student_no`, `category`, and `status`. An omitted year defaults to the active year; an explicitly empty year selects all years. Without an active year, the default includes historical years. Following APP_FLOW.md, invalid enum/year values and overlong or control-character keywords are ignored with a visible non-blocking Chinese notice (200). Other valid filters still apply. Names (maximum 50 characters) and student numbers (maximum 30 characters) use literal substring matching, with SQL LIKE metacharacters escaped and values bound. Malformed path, query, and form extraction errors return a stable Chinese 400 response.
 
-Counts by status and approved score totals use the same selected submissions as the table. No-material declarations have no category/status; their count applies only year/name/student-number filters, as stated beside the counters.
+The dashboard table merges selected result submissions and no-material declarations by `created_at DESC`; exact timestamp ties place result rows first and then use descending ids within each record kind. Declaration rows expose their real name, student number and creation time, but no synthetic submission number, score, or result-detail/review URL. The table caption counts both record kinds. Result total/status counters and approved score totals still use only selected submissions, while the declaration counter remains separate. No-material declarations have no category/status, so their rows and counter apply only year/name/student-number filters, as stated beside the counters.
 
 ### Academic-year and class-code settings
 

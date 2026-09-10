@@ -19,7 +19,7 @@ async fn anonymous_admin_reads_redirect_and_writes_are_forbidden() {
     }
 }
 
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::json;
 use zongce_web::{
     auth::{generate_edit_code, hash_secret},
@@ -126,6 +126,31 @@ async fn record(
         .await
         .unwrap();
     submission
+}
+
+async fn set_submission_created_at(f: &Fixture, id: i64, created_at: DateTime<Utc>) {
+    sqlx::query("UPDATE submissions SET created_at = ? WHERE id = ?")
+        .bind(created_at)
+        .bind(id)
+        .execute(&f.state.db)
+        .await
+        .unwrap();
+}
+
+async fn set_declaration_created_at(f: &Fixture, id: i64, created_at: DateTime<Utc>) {
+    sqlx::query("UPDATE student_declarations SET created_at = ? WHERE id = ?")
+        .bind(created_at)
+        .bind(id)
+        .execute(&f.state.db)
+        .await
+        .unwrap();
+}
+
+fn table_row<'a>(html: &'a str, identity: &str) -> &'a str {
+    let identity_at = html.find(identity).expect("identity in table");
+    let row_start = html[..identity_at].rfind("<tr").expect("row start");
+    let row_end = html[identity_at..].find("</tr>").expect("row end") + identity_at + 5;
+    &html[row_start..row_end]
 }
 
 #[tokio::test]
@@ -385,6 +410,173 @@ async fn dashboard_filters_sort_and_counts_use_selected_records() {
         assert!(response.text().contains("已忽略无效筛选条件"));
         assert!(response.text().contains("id=\"count-total\">4<"));
     }
+}
+
+#[tokio::test]
+async fn declaration_only_dashboard_renders_a_real_non_actionable_row() {
+    let f = fixture().await;
+    let declaration = DeclarationRepo::upsert(&f.state.db, f.year_id, "仅声明测试", "DECL-ONLY-01")
+        .await
+        .unwrap();
+    set_declaration_created_at(
+        &f,
+        declaration.id,
+        DateTime::parse_from_rfc3339("2026-05-01T10:20:30Z")
+            .unwrap()
+            .with_timezone(&Utc),
+    )
+    .await;
+    login(&f).await;
+
+    let response = f.server.get("/admin").await;
+    assert_eq!(response.status_code(), 200);
+    let html = response.text();
+    let row = table_row(&html, "DECL-ONLY-01");
+    for visible in [
+        "仅声明测试",
+        "DECL-ONLY-01",
+        "无申报材料",
+        "2026-05-01 10:20 UTC",
+    ] {
+        assert!(row.contains(visible), "missing {visible} in {row}");
+    }
+    assert!(!row.contains("ZC2026-"));
+    assert!(!row.contains("/admin/submissions/"));
+    assert!(!row.contains("查看"));
+    assert!(!row.contains("未核定"));
+    for counter in [
+        "id=\"count-total\">0<",
+        "id=\"count-approved\">0<",
+        "id=\"count-pending\">0<",
+        "id=\"count-needs_revision\">0<",
+        "id=\"count-rejected\">0<",
+        "id=\"count-declarations\">1<",
+        "id=\"approved-total\">0.00<",
+    ] {
+        assert!(html.contains(counter), "missing {counter}");
+    }
+    assert!(html.contains("符合筛选条件的 1 条记录"));
+    assert!(!html.contains("没有符合筛选条件的申报"));
+}
+
+#[tokio::test]
+async fn mixed_dashboard_preserves_declaration_identity_filters_history_and_upserts() {
+    let f = fixture().await;
+    let history = AcademicYearRepo::insert(
+        &f.state.db,
+        &NewAcademicYear {
+            name: "2024-2025".into(),
+            start_date: NaiveDate::from_ymd_opt(2024, 9, 1).unwrap(),
+            end_date: NaiveDate::from_ymd_opt(2025, 8, 31).unwrap(),
+            deadline: None,
+            is_active: false,
+            announcement: None,
+        },
+    )
+    .await
+    .unwrap();
+    let old = DeclarationRepo::upsert(&f.state.db, f.year_id, "同一学生", "MIXED-01")
+        .await
+        .unwrap();
+    set_declaration_created_at(
+        &f,
+        old.id,
+        DateTime::parse_from_rfc3339("2026-01-01T01:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc),
+    )
+    .await;
+    let duplicate = DeclarationRepo::upsert(&f.state.db, f.year_id, "同一学生", "MIXED-01")
+        .await
+        .unwrap();
+    assert_eq!(duplicate.id, old.id, "duplicate declaration must upsert");
+
+    let result = record(
+        &f,
+        1,
+        f.year_id,
+        "同一学生",
+        Category::Patent,
+        SubmissionStatus::Approved,
+        Some(2.5),
+    )
+    .await;
+    sqlx::query("UPDATE submissions SET student_no = ? WHERE id = ?")
+        .bind("MIXED-01")
+        .bind(result.id)
+        .execute(&f.state.db)
+        .await
+        .unwrap();
+    set_submission_created_at(
+        &f,
+        result.id,
+        DateTime::parse_from_rfc3339("2026-03-01T01:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc),
+    )
+    .await;
+    let newest = DeclarationRepo::upsert(&f.state.db, f.year_id, "最新声明", "ORDER-NEW")
+        .await
+        .unwrap();
+    set_declaration_created_at(
+        &f,
+        newest.id,
+        DateTime::parse_from_rfc3339("2026-03-01T01:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc),
+    )
+    .await;
+    DeclarationRepo::upsert(&f.state.db, f.year_id, "百分%声明", "LITERAL_01")
+        .await
+        .unwrap();
+    DeclarationRepo::upsert(&f.state.db, f.year_id, "百分甲声明", "LITERALX01")
+        .await
+        .unwrap();
+    DeclarationRepo::upsert(&f.state.db, history.id, "历史声明", "HISTORY-01")
+        .await
+        .unwrap();
+    login(&f).await;
+
+    let html = f.server.get("/admin").await.text();
+    assert!(html.find("ZC2026-000001").unwrap() < html.find("最新声明").unwrap());
+    assert!(html.find("最新声明").unwrap() < html.find("2026-01-01 01:00 UTC").unwrap());
+    assert_eq!(html.matches("同一学生").count(), 2);
+    assert_eq!(html.matches("MIXED-01").count(), 2);
+    assert!(!html.contains("历史声明"));
+    assert!(html.contains("id=\"count-total\">1<"));
+    assert!(html.contains("id=\"count-approved\">1<"));
+    assert!(html.contains("id=\"count-declarations\">4<"));
+    assert!(html.contains("id=\"approved-total\">2.50<"));
+    assert!(html.contains("符合筛选条件的 5 条记录"));
+
+    let literal_name = f.server.get("/admin?name=%25").await.text();
+    assert!(literal_name.contains("百分%声明"));
+    assert!(!literal_name.contains("百分甲声明"));
+    assert!(literal_name.contains("符合筛选条件的 1 条记录"));
+    let literal_student_no = f.server.get("/admin?student_no=LITERAL_").await.text();
+    assert!(literal_student_no.contains("LITERAL_01"));
+    assert!(!literal_student_no.contains("LITERALX01"));
+
+    let declaration_ignores_result_filters = f
+        .server
+        .get("/admin?name=%E6%9C%80%E6%96%B0&category=patent&status=approved")
+        .await
+        .text();
+    assert!(declaration_ignores_result_filters.contains("最新声明"));
+    assert!(declaration_ignores_result_filters.contains("id=\"count-total\">0<"));
+    assert!(declaration_ignores_result_filters.contains("id=\"count-declarations\">1<"));
+    assert!(declaration_ignores_result_filters.contains("符合筛选条件的 1 条记录"));
+
+    let history_html = f
+        .server
+        .get(&format!("/admin?academic_year_id={}", history.id))
+        .await
+        .text();
+    assert!(history_html.contains("历史声明"));
+    assert!(!history_html.contains("最新声明"));
+    assert!(history_html.contains("id=\"count-total\">0<"));
+    assert!(history_html.contains("id=\"count-declarations\">1<"));
+    assert!(history_html.contains("符合筛选条件的 1 条记录"));
 }
 
 #[tokio::test]

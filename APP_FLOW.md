@@ -169,12 +169,12 @@ Trigger: A valid admin session opens the dashboard.
 
 Steps:
 
-1. Load active year, counts by status, no-material declaration count, and approved score total.
+1. Load active year, selected result submissions, no-material declarations, counts by result status, and approved score total.
 2. Apply optional filters: academic year, name keyword, student number keyword, category, and status. An omitted year defaults to the active year, an empty year selects all years, and no active year defaults to all historical years. Name and student number keywords match literal substrings.
-3. Sort by `created_at DESC` and render the compact table.
-4. Provide links to each detail page, Settings, Export, and Logout.
+3. Merge result and declaration display rows, sort by `created_at DESC` with a stable result/declaration and record-id tie order, and render the compact table. Declaration rows show their real identity and `无申报材料`, without a result number, score, or detail/review link.
+4. Provide detail links for result rows plus Settings, Export, and Logout.
 
-Success state: The table, status counts, and approved score total reflect the selected filters. No-material declaration counts apply only academic year, name, and student number because declarations have no category or review status; the dashboard explains this beside the counts.
+Success state: The table row count includes both result and declaration rows. Result total/status counters and the approved score total remain result-only; the declaration counter remains separate. No-material declarations apply only academic year, name, and student number because they have no category or review status, so declaration rows and their counter remain visible under category/status filters when their identity filters match. The dashboard explains this beside the counts.
 
 Error state: Invalid filter values are ignored with a visible non-blocking message; database failure returns 500.
 
