@@ -141,6 +141,18 @@ pub async fn submit_post(
         return Ok(Redirect::to("/").into_response());
     }
 
+    if values.get("form_action").map(String::as_str) == Some("refresh") {
+        transaction.rollback().await?;
+        let html = views::submit(
+            year,
+            generate_csrf_token(&session).await?,
+            values,
+            ValidationErrors::new(),
+        )
+        .map_err(|_| AppError::Template)?;
+        return Ok(Html(html).into_response());
+    }
+
     let has_result = values
         .get("has_result")
         .map(String::as_str)

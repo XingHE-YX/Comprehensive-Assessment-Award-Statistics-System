@@ -371,6 +371,11 @@ async fn seven_categories_and_conditional_branches_expand_into_typed_columns() {
         ),
         (
             Category::Certification,
+            json!({"certificate_type":"CET-4/CET-6","cet6_score":"525"}),
+            vec![("V", json!("CET-4/CET-6")), ("W", json!(525))],
+        ),
+        (
+            Category::Certification,
             json!({"certificate_type":"CET-6","cet6_score":620,"computer_category":"隐藏旧值"}),
             vec![("V", json!("CET-6")), ("W", json!(620))],
         ),
@@ -406,9 +411,9 @@ async fn seven_categories_and_conditional_branches_expand_into_typed_columns() {
     login(&f).await;
     let sheets = download(&f, "").await;
     let sheet = &sheets[0];
-    assert_eq!(sheet["rows"].as_array().unwrap().len(), 13);
+    assert_eq!(sheet["rows"].as_array().unwrap().len(), 14);
     for (i, (category, _, expected)) in cases.iter().enumerate() {
-        let row = 13 - i;
+        let row = 14 - i;
         assert_eq!(
             cell(sheet, "B", row).as_str().unwrap(),
             format!("ZC2026-{:06}", i + 1)
@@ -472,6 +477,95 @@ async fn seven_categories_and_conditional_branches_expand_into_typed_columns() {
     ] {
         assert!(sheets.to_string().contains(text), "{text}");
     }
+}
+
+#[tokio::test]
+async fn combined_cet_create_query_edit_exports_the_latest_numeric_score() {
+    use axum_test::multipart::{MultipartForm, Part};
+    let f = fixture().await;
+    SettingsRepo::set(
+        &f.state.db,
+        "class_access_code_hash",
+        &hash_secret("cet-test-class").unwrap(),
+    )
+    .await
+    .unwrap();
+    let token = csrf(&f.server.get("/").await.text());
+    f.server
+        .post("/access")
+        .form(&json!({"csrf_token": token, "access_code":"cet-test-class"}))
+        .await;
+    let token = csrf(&f.server.get("/submit").await.text());
+    let form = |token: String, score: &str| {
+        MultipartForm::new()
+            .add_text("csrf_token", token)
+            .add_text("student_name", "证书测试学生")
+            .add_text("student_no", "CET-001")
+            .add_text("result_name", "英语考试")
+            .add_text("obtained_date", "2026-04-02")
+            .add_text("category", "certification")
+            .add_text("certificate_type", "CET-4/CET-6")
+            .add_text("cet6_score", score)
+    };
+    let created = f
+        .server
+        .post("/submit")
+        .multipart(
+            form(token, "515").add_part(
+                "attachments",
+                Part::bytes(b"proof".to_vec())
+                    .file_name("proof.pdf")
+                    .mime_type("application/pdf"),
+            ),
+        )
+        .await;
+    assert_eq!(created.status_code(), 303);
+    let receipt = f
+        .server
+        .get(created.headers()["location"].to_str().unwrap())
+        .await
+        .text();
+    let code = receipt
+        .split("id=\"edit-code\">")
+        .nth(1)
+        .unwrap()
+        .split('<')
+        .next()
+        .unwrap();
+    let number: String = sqlx::query_scalar("SELECT submission_no FROM submissions")
+        .fetch_one(&f.state.db)
+        .await
+        .unwrap();
+    let token = csrf(&f.server.get("/query").await.text());
+    assert_eq!(
+        f.server
+            .post("/query")
+            .form(&json!({"csrf_token": token, "submission_no":number, "edit_code":code}))
+            .await
+            .status_code(),
+        303
+    );
+    let detail = f.server.get(&format!("/query/{number}")).await.text();
+    assert!(detail.contains("value=\"515\""));
+    let edited = f
+        .server
+        .post(&format!("/query/{number}/update"))
+        .multipart(form(csrf(&detail), "525"))
+        .await;
+    assert_eq!(edited.status_code(), 303);
+    let data: String = sqlx::query_scalar("SELECT category_data FROM submissions")
+        .fetch_one(&f.state.db)
+        .await
+        .unwrap();
+    let data: Value = serde_json::from_str(&data).unwrap();
+    assert_eq!(data["certificate_type"], "CET-4/CET-6");
+    assert_eq!(data["cet6_score"], "525");
+    assert!(data.get("form_action").is_none());
+    login(&f).await;
+    let sheets = download(&f, "").await;
+    assert_eq!(cell(&sheets[0], "V", 2), "CET-4/CET-6");
+    assert_eq!(cell(&sheets[0], "W", 2).as_f64(), Some(525.0));
+    assert_eq!(sheets[0]["rows"][1]["W2"]["type"], "n");
 }
 
 #[tokio::test]

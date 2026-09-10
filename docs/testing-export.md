@@ -29,8 +29,8 @@ The fixed schema comes from section 11 of the original requirements. Detail rows
 | S | 专利状态 | Patent status |
 | T | 专利成员排名 | Patent team ranking, text |
 | U | 专利号/申请号 | Patent/application number, text |
-| V | 证书/考试类型 | Chinese certificate type or CET-6 |
-| W | 考试成绩 | CET-6/language score, numeric |
+| V | 证书/考试类型 | Chinese certificate type, CET-4/CET-6, or legacy CET-6 |
+| W | 考试成绩 | Combined/legacy CET or language score, numeric |
 | X | 专业类别 | Computer specialization |
 | Y | 资格证书具体名称 | Other qualification |
 | Z | 详细说明 | Original detail plus labeled supplementary category fields |
@@ -77,7 +77,7 @@ ZONGCE_PLAYWRIGHT_MODULE=/path/to/external/node_modules/playwright node tests/ex
 
 The administrator suite downloads filtered/empty/current-year workbooks after student submission, amendment and approval at 320x568, 390x844, 768x1024 and 1440x900, inspecting values and permission revocation. The tablet administrator run disables JavaScript. The settings suite also downloads renamed historical years after activation changes.
 
-The export browser suite runs the existing student regression at all four sizes, including all seven categories and conditional branches, then downloads the 17 actual submissions and 4 declarations. It verifies category coverage, edited values, attachment counts and pending-only zero totals. Sample artifacts and screenshots default to `/tmp/zongce-export-screenshots`; the main sample is `seven-categories.xlsx`. Administrator/empty samples are in `/tmp/zongce-admin-screenshots`, and historical samples in `/tmp/zongce-settings-screenshots`. These contain synthetic test data only and are not committed.
+The export browser suite runs the student regression at all four sizes, including all seven categories, a national honor, and JavaScript-disabled CET submissions/edits, then downloads 22 actual submissions and 4 declarations (repeated declarations upsert). It verifies category coverage, edited values, attachment counts, numeric combined CET scores and pending-only zero totals. A Rust create/query/edit/export test checks the latest numeric score and the category matrix retains legacy CET coverage. Sample artifacts and screenshots default to `/tmp/zongce-export-screenshots`; the main sample is `seven-categories.xlsx`. Administrator/empty samples are in `/tmp/zongce-admin-screenshots`, and historical samples in `/tmp/zongce-settings-screenshots`. These contain synthetic test data only and are not committed.
 
 To verify application compatibility, open the sample in Excel/LibreOffice, or use an installed LibreOffice executable with an isolated profile and output directory:
 

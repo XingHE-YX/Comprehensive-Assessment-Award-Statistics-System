@@ -95,7 +95,6 @@ fn validate_other_award(data: &Map<String, Value>, errors: &mut ValidationErrors
         "是否奖学金/助学金",
         &["yes", "no", "uncertain", "是", "否", "不确定"],
     );
-    required_text(data, errors, keys::SCHOOL_HONOR_CATEGORY, "校级荣誉类别");
 }
 
 fn validate_article(data: &Map<String, Value>, errors: &mut ValidationErrors) {
@@ -145,6 +144,7 @@ fn validate_certification(data: &Map<String, Value>, errors: &mut ValidationErro
         keys::CERTIFICATE_TYPE,
         "证书/考试类型",
         &[
+            "CET-4/CET-6",
             "CET-6",
             "computer",
             "雅思/托福",
@@ -154,7 +154,9 @@ fn validate_certification(data: &Map<String, Value>, errors: &mut ValidationErro
         ],
     );
     match certificate_type {
-        Some("CET-6") => required_number(data, errors, keys::CET6_SCORE, "CET-6 成绩"),
+        Some("CET-4/CET-6" | "CET-6") => {
+            required_number(data, errors, keys::CET6_SCORE, "CET-4/CET-6")
+        }
         Some("computer" | "计算机") => {
             required_text(data, errors, keys::COMPUTER_CATEGORY, "计算机专业类别");
             required_text(data, errors, keys::EXAM_LEVEL, "计算机考试等级");

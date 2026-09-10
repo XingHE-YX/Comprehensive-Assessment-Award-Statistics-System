@@ -102,6 +102,36 @@ fn every_category_accepts_a_complete_sample() {
 }
 
 #[test]
+fn combined_cet_requires_numeric_score_and_legacy_cet_remains_valid() {
+    for kind in ["CET-4/CET-6", "CET-6"] {
+        assert!(
+            validate_category(
+                Category::Certification,
+                &json!({"certificate_type": kind, "cet6_score": "520"})
+            )
+            .is_ok()
+        );
+        for score in [json!(""), json!("not-a-score")] {
+            assert!(
+                validate_category(
+                    Category::Certification,
+                    &json!({"certificate_type": kind, "cet6_score": score})
+                )
+                .is_err()
+            );
+        }
+    }
+}
+
+#[test]
+fn school_honor_category_is_optional_for_national_and_school_awards() {
+    for level in ["国家级", "校级"] {
+        assert!(validate_category(Category::OtherAward, &json!({"award_name": "优秀个人", "recognition_level": level, "is_scholarship": "no"})).is_ok());
+    }
+    assert!(validate_category(Category::OtherAward, &json!({"award_name": "优秀个人", "recognition_level": "校级", "is_scholarship": "no", "school_honor_category": "历史自填荣誉"})).is_ok());
+}
+
+#[test]
 fn category_rules_require_conditional_fields() {
     let mut data = valid_category_data(Category::AcademicCompetition);
     data["award_level"] = json!("其他");

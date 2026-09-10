@@ -71,6 +71,7 @@ pub(super) fn submission_input(
             !matches!(
                 key.as_str(),
                 "csrf_token"
+                    | "form_action"
                     | "has_result"
                     | "student_name"
                     | "student_no"

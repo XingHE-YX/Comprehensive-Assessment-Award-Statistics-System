@@ -144,6 +144,23 @@ pub async fn update(
     if !verify_csrf_token(&session, &csrf).await? {
         return Err(AppError::BadRequest);
     }
+    if values.get("form_action").map(String::as_str) == Some("refresh") {
+        // Multipart parsing may outlast a code reset or review. Refresh is read-only,
+        // but still requires the current credential version and an editable record.
+        let submission = verified_submission(&state, &session, &submission_no).await?;
+        if !submission.status.can_student_edit() {
+            return Err(AppError::Forbidden);
+        }
+        return render_detail(
+            &state,
+            &session,
+            submission,
+            Some(values),
+            ValidationErrors::new(),
+            StatusCode::OK,
+        )
+        .await;
+    }
     let year = AcademicYearRepo::find_by_id(&state.db, submission.academic_year_id)
         .await?
         .ok_or(AppError::NotFound)?;

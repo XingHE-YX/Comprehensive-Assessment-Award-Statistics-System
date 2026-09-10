@@ -591,6 +591,15 @@ async fn credential_version_guards_previously_loaded_writes_and_competing_resets
 
 #[tokio::test]
 async fn reset_during_multipart_upload_rejects_old_version_before_saving_files() {
+    assert_reset_during_multipart_rejects_old_version("submit").await;
+}
+
+#[tokio::test]
+async fn reset_during_form_refresh_rejects_old_version_after_parsing() {
+    assert_reset_during_multipart_rejects_old_version("refresh").await;
+}
+
+async fn assert_reset_during_multipart_rejects_old_version(form_action: &str) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let f = fixture().await;
     let cookie = &f.student_cookie;
@@ -615,6 +624,7 @@ async fn reset_during_multipart_upload_rejects_old_version_before_saving_files()
     let mut body = String::new();
     for (name, value) in [
         ("csrf_token", token.as_str()),
+        ("form_action", form_action),
         ("student_name", "旧会话"),
         ("student_no", "RACE-CODE"),
         ("result_name", "不应保存"),

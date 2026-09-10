@@ -13,7 +13,7 @@ Trigger: The visitor opens the site root.
 
 Steps:
 
-1. Load the single active academic year, its date range, optional deadline, announcement, and class name.
+1. Load the single active academic year, its date range, optional deadline explicitly labeled UTC, announcement, and class name.
 2. Render the six required notices: one result per submission, repeat for multiple results, submit the highest level for duplicates, scholarships are normally excluded, final recognition is decided by review, and evidence must be clear and authentic.
 3. Render a class access code field and a Submit button.
 4. Render a Query/Edit link that leads to `/query` without requiring the class access code.
@@ -50,6 +50,9 @@ Steps:
 3. If the answer is No, show the no-material declaration confirmation and no file input.
 4. If the answer is Yes, show common result fields, category select, seven conditional sections, and a multi-file input.
 5. The browser script hides irrelevant category sections and marks hidden inputs disabled.
+6. Without JavaScript, nearby Update Fields buttons submit `form_action=refresh` with native validation skipped. After session and CSRF checks, the server renders the selected declaration, category, and conditional fields with retained text; it creates no records or attachments. The helper explains to update fields before selecting files, because file selections cannot survive a server refresh. JavaScript hides and disables these buttons so Enter still submits normally.
+
+School-honor category is optional and shown for school recognition, with six prescribed choices and a preserved option for historical custom text. An already-stored value remains visible and editable even for a historical non-school record. The combined CET option and score label are `CET-4/CET-6`; existing `CET-6` records prefill the combined option and retain their `cet6_score`. Reads never rewrite stored category JSON.
 
 Success state: The page is ready for one result or one no-material declaration.
 
@@ -139,6 +142,7 @@ Trigger: The student submits the editable detail form.
 Steps:
 
 1. Verify the student session, CSRF token, and current editable status.
+   A `form_action=refresh` request rechecks the current credential version and editable status after multipart parsing, then renders the open editor with retained text and no writes or saved files. A normal final submission still runs every validation below.
 2. Re-run common fields, category, date, and upload validation against the submission's original academic year. The deadline limits new submissions only; existing Pending and Needs Revision records remain editable after the deadline or year deactivation.
 3. Replace common/category values and add new attachments in a transaction. Keep existing attachments; an update may add none, and the combined total must remain 1-10. Condition the initial write on both editable status and the verified credential version, then count/save attachments under that write lock. An administrator reset during multipart parsing rejects the old update before files are saved.
 4. Set status to Pending, preserve the review note, set `student_modified_after_review=true`, and update `updated_at`.

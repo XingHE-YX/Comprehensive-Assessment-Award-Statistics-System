@@ -33,4 +33,6 @@ Replace PORT with the preview's actual port. The test generates synthetic submis
 
 The regression suite also checks repeated opening of the edit disclosure, preserved category values, unchanged attachment count on text-only edits, JavaScript errors, and horizontal overflow. Rust tests cover wrong credentials, CSRF, session scope, read-only review states, original-year validation, attachment ownership/count limits, database failure cleanup and a review that occurs after the student record was loaded.
 
+The feedback regression adds the combined CET option and score, national awards without school-only fields, all six school-honor choices, and hidden/disabled fallback buttons when JavaScript runs. At each viewport a JavaScript-disabled context completes a declaration plus category/conditional refresh, CET submission, query, and edit refresh. Text survives refresh; uploaded files are chosen afterward. Route tests verify that refresh writes neither records nor files and still enforces CSRF, editable status, and credential version. Legacy CET scores and custom school-honor text retain editable values.
+
 Docker/Compose verification is deferred to Task 10. Docker is not installed on the current development machine.

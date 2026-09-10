@@ -470,8 +470,8 @@ fn expand_category(s: &Submission, cells: &mut [Cell; 34]) {
             }
             .into();
             match kind {
-                "CET-6" | "雅思/托福" => {
-                    let key = if kind == "CET-6" {
+                "CET-4/CET-6" | "CET-6" | "雅思/托福" => {
+                    let key = if matches!(kind, "CET-4/CET-6" | "CET-6") {
                         keys::CET6_SCORE
                     } else {
                         keys::LANGUAGE_SCORE

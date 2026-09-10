@@ -10,6 +10,15 @@ pub(super) struct Field {
 }
 
 impl Field {
+    pub(super) fn condition_matches(&self, value: &str) -> bool {
+        let value = value.trim();
+        self.when_key.is_empty()
+            || value == self.when_value
+            || matches!(
+                (self.when_key, self.when_value, value),
+                ("certificate_type", "CET-4/CET-6", "CET-6") | ("recognition_level", "校级", "校")
+            )
+    }
     fn text(key: &'static str, label: &'static str) -> Self {
         Self {
             key,
@@ -98,7 +107,17 @@ pub(super) fn category_sections() -> Vec<CategorySection> {
             fields: vec![
                 F::text("award_name", "荣誉完整名称"),
                 F::text("recognition_level", "表彰级别"),
-                F::text("school_honor_category", "校级荣誉类别"),
+                F::text("school_honor_category", "校级荣誉类别（选填）")
+                    .optional()
+                    .when("recognition_level", "校级")
+                    .options(&[
+                        ("优秀团务工作者", "优秀团务工作者"),
+                        ("魅力团支书", "魅力团支书"),
+                        ("优秀共青团干部", "优秀共青团干部"),
+                        ("优秀共青团员", "优秀共青团员"),
+                        ("五四奖章", "五四奖章"),
+                        ("其他校级荣誉", "其他校级荣誉"),
+                    ]),
                 F::text("is_scholarship", "是否奖学金/助学金").options(&[
                     ("yes", "是"),
                     ("no", "否"),
@@ -143,12 +162,12 @@ pub(super) fn category_sections() -> Vec<CategorySection> {
             category: Category::Certification,
             fields: vec![
                 F::text("certificate_type", "证书/考试类型").options(&[
-                    ("CET-6", "CET-6"),
+                    ("CET-4/CET-6", "CET-4/CET-6"),
                     ("computer", "计算机"),
                     ("雅思/托福", "雅思/托福"),
                     ("other", "其他资格证书"),
                 ]),
-                F::text("cet6_score", "CET-6 成绩").when("certificate_type", "CET-6"),
+                F::text("cet6_score", "CET-4/CET-6").when("certificate_type", "CET-4/CET-6"),
                 F::text("computer_category", "计算机专业类别").when("certificate_type", "computer"),
                 F::text("exam_level", "计算机考试等级").when("certificate_type", "computer"),
                 F::text("language_score", "雅思/托福成绩").when("certificate_type", "雅思/托福"),

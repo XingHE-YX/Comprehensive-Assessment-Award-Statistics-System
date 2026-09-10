@@ -41,7 +41,7 @@ const baseUrl = new Promise((resolve,reject) => {
     await page.locator("#password").fill(password);
     await page.getByRole("button",{name:"登录",exact:true}).click();
     await page.waitForURL(base+"/admin");
-    assert.equal(await page.locator("#count-total").innerText(),"17");
+    assert.equal(await page.locator("#count-total").innerText(),"22");
     const downloaded=page.waitForEvent("download");
     await page.getByRole("link",{name:"导出当前学年",exact:true}).click();
     const file=await downloaded;
@@ -51,7 +51,7 @@ const baseUrl = new Promise((resolve,reject) => {
     const parsed=spawnSync("python3",[path.join(__dirname,"support/read_xlsx.py"),filename],{encoding:"utf8",maxBuffer:4*1024*1024});
     assert.equal(parsed.status,0,parsed.stderr);
     const [detail,summary]=JSON.parse(parsed.stdout);
-    assert.equal(detail.rows.length,18);
+    assert.equal(detail.rows.length,23);
     assert.equal(summary.rows.length,9);
     const categories=new Set(detail.rows.slice(1).map((row,index)=>row["F"+(index+2)].value));
     assert.deepEqual([...categories].sort(),["学术科技类竞赛","文体类比赛","其他获奖表彰","发表文章","社会实践/服务","专利","学习技能/资格证书"].sort());
@@ -61,6 +61,10 @@ const baseUrl = new Promise((resolve,reject) => {
       assert.equal(row["AD"+number].value,"待审核");
       assert.equal(row["G"+number].value,"浏览器修改已保存");
       assert.equal(row["H"+number].type,"n");
+      if (row["V"+number]?.value === "CET-4/CET-6") {
+        assert.equal(row["W"+number].type,"n");
+        assert([500,525].includes(row["W"+number].value));
+      }
     }
     for(let index=1;index<summary.rows.length;index++) assert.equal(summary.rows[index]["I"+(index+1)].value,0);
     await page.screenshot({path:path.join(output,"1440-seven-categories.png"),fullPage:true});

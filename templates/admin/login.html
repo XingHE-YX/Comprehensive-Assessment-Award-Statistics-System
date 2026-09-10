@@ -4,7 +4,8 @@
 <main class="container student-shell">
   <p class="context-line">综测成果申报 · 管理后台</p>
   <h1>管理员登录</h1>
-  <form method="post" action="/admin/login" class="stack-form submission-form" data-admin-form>
+  <p class="lead">登录后管理申报、审核材料与导出统计。</p>
+  <form method="post" action="/admin/login" class="stack-form submission-form panel" data-admin-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if invalid %}<p id="login-error" class="notice notice-error" role="alert">用户名或密码错误，请重试。</p>{% endif %}
     <div class="field"><label for="username">用户名<span class="required">*</span></label><input id="username" name="username" autocomplete="username" required value="{{ username }}" {% if invalid %}autofocus aria-invalid="true" aria-describedby="login-error"{% endif %}></div>

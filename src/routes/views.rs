@@ -31,7 +31,29 @@ struct SubmissionForm {
 }
 impl SubmissionForm {
     fn value(&self, key: &str) -> &str {
-        self.values.get(key).map(String::as_str).unwrap_or("")
+        let value = self.values.get(key).map(String::as_str).unwrap_or("");
+        if key == "certificate_type" && value == "CET-6" {
+            "CET-4/CET-6"
+        } else {
+            value
+        }
+    }
+    fn has_result(&self) -> bool {
+        self.editing || self.value("has_result") != "no"
+    }
+    fn refreshed(&self) -> bool {
+        self.value("form_action") == "refresh"
+    }
+    fn preserved_school_honor(&self, field: &super::fields::Field) -> bool {
+        field.key == "school_honor_category" && !self.value(field.key).is_empty()
+    }
+    fn legacy_option(&self, field: &super::fields::Field) -> bool {
+        field.key == "school_honor_category"
+            && !self.value(field.key).is_empty()
+            && !field
+                .options
+                .iter()
+                .any(|(value, _)| self.selected(field.key, value))
     }
     fn has_errors(&self) -> bool {
         !self.errors.is_empty()
@@ -48,7 +70,8 @@ impl SubmissionForm {
     }
     fn active_field(&self, category: &str, field: &super::fields::Field) -> bool {
         self.value("category") == category
-            && (field.when_key.is_empty() || self.value(field.when_key) == field.when_value)
+            && (field.condition_matches(self.value(field.when_key))
+                || self.preserved_school_honor(field))
     }
 }
 #[derive(Template)]
@@ -236,9 +259,17 @@ pub(super) fn submission_values(
             continue;
         }
         for field in section.fields {
-            if !field.when_key.is_empty()
-                && stored_values.get(field.when_key).map(String::as_str) != Some(field.when_value)
-            {
+            let applicable = field.condition_matches(
+                stored_values
+                    .get(field.when_key)
+                    .map(String::as_str)
+                    .unwrap_or(""),
+            );
+            let preserved = field.key == "school_honor_category"
+                && stored_values
+                    .get(field.key)
+                    .is_some_and(|value| !value.is_empty());
+            if !(applicable || preserved) {
                 continue;
             }
             if let Some(value) = stored_values

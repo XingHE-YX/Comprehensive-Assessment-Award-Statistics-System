@@ -148,6 +148,154 @@ fn proof(name: &str) -> axum_test::multipart::Part {
 }
 
 #[tokio::test]
+async fn edit_refresh_preserves_conditional_text_without_writes_and_checks_permissions() {
+    let (server, pool, _dir) = server().await;
+    let (number, code) = create_submission(&server, "刷新学生").await;
+    assert_eq!(query_submission(&server, &number, &code).await, 303);
+    let before: String = sqlx::query_scalar("SELECT category_data FROM submissions")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let csrf = hidden_csrf(&server.get(&format!("/query/{number}")).await.text());
+    let refreshed = server
+        .post(&format!("/query/{number}/update"))
+        .multipart(
+            edit_form(&csrf)
+                .add_text("form_action", "refresh")
+                .add_text("award_level", "其他")
+                .add_text("other_award", "保留名次")
+                .add_part("attachments", proof("discard.pdf")),
+        )
+        .await;
+    assert_eq!(refreshed.status_code(), 200);
+    let html = refreshed.text();
+    assert!(html.contains("value=\"保留名次\""));
+    assert!(
+        html.split("id=\"edit-submission\"")
+            .nth(1)
+            .unwrap()
+            .split('>')
+            .next()
+            .unwrap()
+            .contains("open")
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("SELECT category_data FROM submissions")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        before
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM attachments")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        server
+            .post(&format!("/query/{number}/update"))
+            .multipart(edit_form("invalid").add_text("form_action", "refresh"))
+            .await
+            .status_code(),
+        400
+    );
+    sqlx::query("UPDATE submissions SET status = 'approved', approved_score = 1")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        server
+            .post(&format!("/query/{number}/update"))
+            .multipart(edit_form(&hidden_csrf(&html)).add_text("form_action", "refresh"))
+            .await
+            .status_code(),
+        403
+    );
+    sqlx::query(
+        "UPDATE submissions SET status = 'pending', edit_code_version = edit_code_version + 1",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        server
+            .post(&format!("/query/{number}/update"))
+            .multipart(edit_form(&hidden_csrf(&html)).add_text("form_action", "refresh"))
+            .await
+            .status_code(),
+        403
+    );
+}
+
+#[tokio::test]
+async fn legacy_cet_score_and_custom_school_honor_prefill_edit_without_rewriting_storage() {
+    let (server, pool, _dir) = server().await;
+    let (number, code) = create_submission(&server, "历史学生").await;
+    assert_eq!(query_submission(&server, &number, &code).await, 303);
+    for (category, data, expected) in [
+        (
+            "certification",
+            json!({"certificate_type":"CET-6", "cet6_score": 520}),
+            "value=\"CET-4/CET-6\" selected",
+        ),
+        (
+            "other_award",
+            json!({"award_name":"历史荣誉", "recognition_level":"校级", "is_scholarship":"no", "school_honor_category":"历史自填荣誉"}),
+            "value=\"历史自填荣誉\" selected",
+        ),
+        (
+            "other_award",
+            json!({"award_name":"历史荣誉", "recognition_level":"国家级", "is_scholarship":"no", "school_honor_category":"历史自填荣誉"}),
+            "value=\"历史自填荣誉\" selected",
+        ),
+    ] {
+        let stored = data.to_string();
+        sqlx::query("UPDATE submissions SET category = ?, category_data = ?")
+            .bind(category)
+            .bind(&stored)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let response = server.get(&format!("/query/{number}")).await;
+        assert_eq!(response.status_code(), 200);
+        assert!(
+            response.text().contains(expected),
+            "{category}: missing {expected}"
+        );
+        if category == "certification" {
+            assert!(response.text().contains("value=\"520\""));
+            assert!(response.text().contains("<dd class=\"user-text\">520</dd>"));
+        } else {
+            assert!(
+                response
+                    .text()
+                    .contains("<dd class=\"user-text\">历史自填荣誉</dd>")
+            );
+            assert!(
+                !response
+                    .text()
+                    .split("id=\"other_award-school_honor_category\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('>')
+                    .next()
+                    .unwrap()
+                    .contains("disabled")
+            );
+        }
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT category_data FROM submissions")
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            stored
+        );
+    }
+}
+
+#[tokio::test]
 async fn review_changes_after_loading_the_record_prevent_stale_student_writes() {
     use zongce_web::{
         db::SubmissionRepo,

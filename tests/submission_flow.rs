@@ -81,6 +81,107 @@ async fn no_active_year_keeps_submission_closed() {
 }
 
 #[tokio::test]
+async fn form_refresh_preserves_text_opens_declaration_and_never_saves_uploads() {
+    use axum_test::multipart::{MultipartForm, Part};
+    let (server, pool, dir) = server(true).await;
+    let token = |html: String| {
+        html.split("name=\"csrf_token\" value=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap()
+            .to_owned()
+    };
+    let csrf = token(server.get("/").await.text());
+    server
+        .post("/access")
+        .form(&json!({"csrf_token": csrf, "access_code": "class-code"}))
+        .await;
+    let csrf = token(server.get("/submit").await.text());
+    let refresh = server
+        .post("/submit")
+        .multipart(
+            MultipartForm::new()
+                .add_text("csrf_token", &csrf)
+                .add_text("form_action", "refresh")
+                .add_text("has_result", "no")
+                .add_text("student_name", "无材料学生")
+                .add_text("student_no", "NOJS-001")
+                .add_part(
+                    "attachments",
+                    Part::bytes(b"discard".to_vec())
+                        .file_name("unused.pdf")
+                        .mime_type("application/pdf"),
+                ),
+        )
+        .await;
+    assert_eq!(refresh.status_code(), 200);
+    let html = refresh.text();
+    assert!(html.contains("value=\"无材料学生\""));
+    assert!(
+        !html
+            .split("id=\"declaration-confirm\"")
+            .nth(1)
+            .unwrap()
+            .split('>')
+            .next()
+            .unwrap()
+            .contains("hidden")
+    );
+    assert!(
+        html.split("data-result-fields")
+            .nth(1)
+            .unwrap()
+            .split('>')
+            .next()
+            .unwrap()
+            .contains("disabled")
+    );
+    for table in ["submissions", "student_declarations", "attachments"] {
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(&format!("SELECT COUNT(*) FROM {table}"))
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            0
+        );
+    }
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    let missing_csrf = server
+        .post("/submit")
+        .multipart(MultipartForm::new().add_text("form_action", "refresh"))
+        .await;
+    assert_eq!(missing_csrf.status_code(), 400);
+    let csrf = token(html);
+    let no_confirmation = server
+        .post("/submit")
+        .multipart(
+            MultipartForm::new()
+                .add_text("csrf_token", &csrf)
+                .add_text("has_result", "no")
+                .add_text("student_name", "无材料学生")
+                .add_text("student_no", "NOJS-001"),
+        )
+        .await;
+    assert_eq!(no_confirmation.status_code(), 422);
+    let csrf = token(no_confirmation.text());
+    let submitted = server
+        .post("/submit")
+        .multipart(
+            MultipartForm::new()
+                .add_text("csrf_token", csrf)
+                .add_text("has_result", "no")
+                .add_text("student_name", "无材料学生")
+                .add_text("student_no", "NOJS-001")
+                .add_text("no_result_confirm", "yes"),
+        )
+        .await;
+    assert_eq!(submitted.status_code(), 303);
+    assert_eq!(submitted.headers()["location"], "/success/declaration");
+}
+
+#[tokio::test]
 async fn valid_submission_creates_unique_number_and_attachment() {
     let (server, pool, _dir) = server(true).await;
     let home = server.get("/").await;

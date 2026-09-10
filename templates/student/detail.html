@@ -8,6 +8,7 @@
   {% if submission.student_modified_after_review %}<p class="notice notice-neutral">已重新提交审核。</p>{% endif %}
   {% if !submission.status.can_student_edit() %}<p class="notice notice-neutral">此申报已完成审核，仅可查看。</p>{% endif %}
   {% match submission.review_note %}{% when Some with (note) %}<section class="review-note"><h2>审核备注</h2><p class="user-text">{{ note }}</p></section>{% when None %}{% endmatch %}
+  <section class="record-panel" aria-labelledby="student-record-heading"><h2 id="student-record-heading">申报内容</h2>
   <dl class="meta-list detail-list">
     <div><dt>核定分值</dt><dd>{% match submission.approved_score %}{% when Some with (score) %}{{ score }}{% when None %}尚未核定{% endmatch %}</dd></div>
     <div><dt>姓名</dt><dd>{{ submission.student_name }}</dd></div><div><dt>学号</dt><dd>{{ submission.student_no }}</dd></div>
@@ -20,8 +21,9 @@
     <div><dt>更新时间</dt><dd><time datetime="{{ submission.updated_at.to_rfc3339() }}">{{ submission.updated_at.format("%Y-%m-%d %H:%M UTC") }}</time></dd></div>
   </dl>
   <section class="detail-section"><h2>证明材料</h2><ul class="attachment-list">{% for attachment in attachments %}<li><a href="/submissions/{{ submission.submission_no }}/attachments/{{ attachment.id }}" target="_blank" rel="noopener">{{ attachment.original_name }}</a><span class="helper">{{ attachment.file_size }} 字节</span></li>{% endfor %}</ul></section>
+  </section>
   {% if submission.status.can_student_edit() %}
-  <details id="edit-submission" class="detail-section" {% if form.has_errors() %}open{% endif %}><summary>修改申报内容</summary>{% include "student/form.html" %}</details>
+  <details id="edit-submission" class="detail-section" {% if form.has_errors() || form.refreshed() %}open{% endif %}><summary>修改申报内容</summary>{% include "student/form.html" %}</details>
   {% else %}<input type="hidden" name="csrf_token" value="{{ form.csrf_token }}">{% endif %}
   <p><a href="/query">查询其他申报</a></p>
 </main>

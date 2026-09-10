@@ -10,13 +10,14 @@ fs.mkdirSync(output, { recursive: true });
 const cases = [
   ["academic_competition", { competition_name: "测试竞赛", competition_type: "A", level: "国家", award_level: "其他", other_award: "第四名" }],
   ["sports_arts_competition", { competition_name: "测试比赛", level: "校", has_award_level: "no", rank: "第八名" }],
-  ["other_award", { award_name: "测试荣誉", recognition_level: "校级", school_honor_category: "其他", is_scholarship: "yes" }],
+  ["other_award", { award_name: "测试荣誉", recognition_level: "校级", school_honor_category: "其他校级荣誉", is_scholarship: "yes" }],
+  ["other_award", { award_name: "国家级荣誉", recognition_level: "国家级", is_scholarship: "no" }],
   ["published_article", { title: "测试论文", nature: "academic", publication_type: "期刊", author_order: "第一作者", journal_name: "测试期刊" }],
   ["social_practice", { project_name: "测试实践", level: "校级", identity: "队员", award_level_or_none: "无具体等级" }],
   ["patent", { name: "测试专利", type: "发明", status: "申请中", ranking: "1", patent_no: "TEST-PATENT-001" }],
   ["certification", { certificate_type: "computer", computer_category: "非计算机", exam_level: "二级" }],
   ["published_article", { title: "测试文章", nature: "non_academic", platform: "测试刊物", publication_form: "纸刊", link_or_info: "2026年第一期" }],
-  ["certification", { certificate_type: "CET-6", cet6_score: "500" }],
+  ["certification", { certificate_type: "CET-4/CET-6", cet6_score: "500" }],
   ["certification", { certificate_type: "雅思/托福", language_score: "7" }],
   ["certification", { certificate_type: "other", qualification_name: "测试资格证书" }],
 ];
@@ -39,6 +40,8 @@ const cases = [
       await page.locator("#access-code").fill("preview-only");
       await page.getByRole("button", { name: "继续填写" }).click();
       await page.waitForURL("**/submit");
+      assert.equal(await page.locator("[data-form-refresh]:visible").count(), 0);
+      assert(await page.locator("[data-form-refresh] button").evaluateAll((buttons) => buttons.every((button) => button.disabled)), "Hidden refresh buttons cannot intercept Enter");
       const samples = width === 1440 ? cases : cases.slice(0, 2);
       for (const [category, fields] of samples) {
         await page.goto(baseUrl + "/submit");
@@ -52,13 +55,20 @@ const cases = [
           if (await control.evaluate((element) => element.tagName === "SELECT")) await control.selectOption(value);
           else await control.fill(value);
         }
+        if (category === "other_award" && fields.recognition_level === "国家级") {
+          assert(await page.locator("#other_award-school_honor_category").isDisabled());
+        }
+        if (category === "other_award" && fields.recognition_level === "校级") {
+          assert.deepEqual(await page.locator("#other_award-school_honor_category option").allTextContents(), ["可不选择", "优秀团务工作者", "魅力团支书", "优秀共青团干部", "优秀共青团员", "五四奖章", "其他校级荣誉"]);
+        }
         await page.locator("#attachments").setInputFiles({
           name: "测试证明.pdf",
           mimeType: "application/pdf",
           buffer: Buffer.from("%PDF-1.4\n% browser test fixture\n%%EOF"),
         });
         await checkWidth();
-        await page.getByRole("button", { name: "提交申报", exact: true }).click();
+        if (category === "academic_competition") await page.locator("#result_name").press("Enter");
+        else await page.getByRole("button", { name: "提交申报", exact: true }).click();
         await page.waitForURL("**/success/ZC*");
         const number = await page.locator(".submission-number").innerText();
         const code = await page.locator("#edit-code").innerText();
@@ -100,6 +110,58 @@ const cases = [
       await page.waitForURL("**/success/declaration");
       assert.deepEqual(errors, []);
       await context.close();
+      const plain = await browser.newContext({ viewport: { width, height }, javaScriptEnabled: false });
+      const nojs = await plain.newPage();
+      nojs.setDefaultTimeout(8000);
+      const refresh = async (name) => {
+        await Promise.all([nojs.waitForNavigation(), nojs.getByRole("button", { name, exact: true }).click()]);
+        assert(await nojs.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "No-JS overflow at " + width);
+      };
+      await nojs.goto(baseUrl);
+      await nojs.locator("#access-code").fill("preview-only");
+      await nojs.getByRole("button", { name: "继续填写" }).click();
+      await nojs.waitForURL("**/submit");
+      await nojs.locator("#student_name").fill("无材料测试学生");
+      await nojs.locator("#student_no").fill("TEST-NONE-" + width);
+      await nojs.locator("#has-result-no").check();
+      await refresh("更新申报选择");
+      assert.equal(await nojs.locator("#student_name").inputValue(), "无材料测试学生");
+      assert(await nojs.locator("#result_name").isDisabled());
+      await nojs.locator("#no-result-confirm").check();
+      await nojs.screenshot({ path: path.join(output, width + "-nojs-declaration.png"), fullPage: true });
+      await nojs.getByRole("button", { name: "提交申报", exact: true }).click();
+      await nojs.waitForURL("**/success/declaration");
+      await nojs.goto(baseUrl + "/submit");
+      await nojs.locator("#student_name").fill("测试学生");
+      await nojs.locator("#student_no").fill("TEST-" + width);
+      await nojs.locator("#result_name").fill("无脚本 CET 申报");
+      await nojs.locator("#obtained_date").fill("2026-04-02");
+      await nojs.locator("#category").selectOption("certification");
+      await refresh("更新成果填写项");
+      await nojs.locator("#certification-certificate_type").selectOption("CET-4/CET-6");
+      await refresh("更新类别填写项");
+      await nojs.getByLabel("CET-4/CET-6", { exact: false }).fill("515");
+      await nojs.locator("#attachments").setInputFiles({ name: "nojs-proof.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") });
+      await nojs.getByRole("button", { name: "提交申报", exact: true }).click();
+      await nojs.waitForURL("**/success/ZC*");
+      const nojsNumber = await nojs.locator(".submission-number").innerText();
+      const nojsCode = await nojs.locator("#edit-code").innerText();
+      await nojs.goto(baseUrl + "/query");
+      await nojs.locator("#submission-no").fill(nojsNumber);
+      await nojs.locator("#edit-code").fill(nojsCode);
+      await nojs.getByRole("button", { name: "查询申报" }).click();
+      await nojs.waitForURL("**/query/ZC*");
+      await nojs.locator("#edit-submission > summary").click();
+      assert.equal(await nojs.locator("#certification-cet6_score").inputValue(), "515");
+      await nojs.locator("#certification-cet6_score").fill("525");
+      await refresh("更新类别填写项");
+      assert(await nojs.locator("#edit-submission").evaluate((element) => element.open));
+      assert.equal(await nojs.locator("#certification-cet6_score").inputValue(), "525");
+      await nojs.locator("#result_name").fill("浏览器修改已保存");
+      await nojs.getByRole("button", { name: "保存并重新提交" }).click();
+      await nojs.waitForURL(baseUrl + "/query/" + nojsNumber);
+      assert(await nojs.getByText("525", { exact: true }).isVisible());
+      await plain.close();
       console.log(width + "x" + height + ": submission, query, edit, protected download and declaration passed");
     }
   } finally {

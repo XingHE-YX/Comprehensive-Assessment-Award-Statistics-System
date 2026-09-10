@@ -6,9 +6,15 @@ if (form) {
   const declaration = form.querySelector("#declaration-confirm");
   const noResultConfirm = form.querySelector("#no-result-confirm");
   const sections = [...form.querySelectorAll("[data-category-section]")];
+  for (const fallback of form.querySelectorAll("[data-form-refresh]")) {
+    fallback.hidden = true;
+    fallback.querySelector("button").disabled = true;
+    fallback.querySelector("button").type = "button";
+  }
   const sync = () => {
     const hasResult = form.dataset.editing === "true" || form.querySelector('input[name="has_result"]:checked')?.value !== "no";
     resultFields.hidden = !hasResult;
+    resultFields.disabled = !hasResult;
     resultFields.querySelectorAll("input, select, textarea").forEach((control) => { control.disabled = !hasResult; });
     if (declaration) declaration.hidden = hasResult;
     if (noResultConfirm) noResultConfirm.disabled = hasResult;
@@ -19,7 +25,11 @@ if (form) {
       section.querySelectorAll("[data-condition-key]").forEach((field) => {
         const key = field.dataset.conditionKey;
         const discriminator = [...section.querySelectorAll("[name]")].find((control) => control.name === key);
-        const visible = active && (!key || discriminator?.value === field.dataset.conditionValue);
+        const value = discriminator?.value.trim();
+        const matches = value === field.dataset.conditionValue
+          || (key === "recognition_level" && value === "校" && field.dataset.conditionValue === "校级")
+          || (key === "certificate_type" && value === "CET-6" && field.dataset.conditionValue === "CET-4/CET-6");
+        const visible = active && (!key || matches || field.dataset.preserveValue === "true");
         field.hidden = !visible;
         field.querySelectorAll("input, select, textarea").forEach((control) => {
           control.disabled = !visible;
@@ -29,6 +39,9 @@ if (form) {
     });
   };
   form.addEventListener("change", sync);
+  form.addEventListener("input", (event) => {
+    if (event.target.name === "recognition_level") sync();
+  });
   form.addEventListener("submit", (event) => {
     if (event.submitter instanceof HTMLButtonElement) {
       event.submitter.disabled = true;

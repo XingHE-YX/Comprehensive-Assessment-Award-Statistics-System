@@ -6,6 +6,9 @@
 <input id="{{ key }}" name="{{ key }}" type="{{ kind }}" value="{{ form.value(key) }}" maxlength="{{ limit }}" required {% if form.errors.contains_key(key) %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}>
 {% call error(key, key) %}</div>
 {% endmacro %}
+{% macro refresh(label) %}
+<div class="form-refresh" data-form-refresh><button class="button button-secondary" type="submit" name="form_action" value="refresh" formnovalidate>{{ label }}</button><p class="helper">选择后先更新填写项，再填写新显示的内容。请最后选择附件；更新填写项会清空尚未上传的文件。</p></div>
+{% endmacro %}
 {% if form.has_errors() %}
 <div class="notice notice-error error-summary" role="alert"><strong>请检查以下内容</strong><ul>{% for (_, messages) in form.errors.fields %}{% for message in messages %}<li>{{ message }}</li>{% endfor %}{% endfor %}</ul></div>
 {% endif %}
@@ -17,11 +20,13 @@
   </div></fieldset>
   {% if !form.editing %}
   <fieldset class="form-section"><legend>申报选择</legend>
-    <div class="choice-group"><label class="choice"><input type="radio" name="has_result" value="yes" {% if form.checked("has_result", "yes") %}checked{% endif %}>有成果，填写成果信息</label><label class="choice"><input type="radio" name="has_result" value="no" {% if form.checked("has_result", "no") %}checked{% endif %}>本学年无成果，提交声明</label></div>
+    <div class="choice-group"><label class="choice choice-card" for="has-result-yes"><input id="has-result-yes" type="radio" name="has_result" value="yes" {% if form.checked("has_result", "yes") %}checked{% endif %}><span><strong>有成果材料</strong><span class="helper">每次填写一项成果，并上传证明材料。</span></span></label><label class="choice choice-card" for="has-result-no"><input id="has-result-no" type="radio" name="has_result" value="no" {% if form.checked("has_result", "no") %}checked{% endif %}><span><strong>无申报材料</strong><span class="helper">确认本学年暂无成果材料，提交声明。</span></span></label></div>
+    {% call refresh("更新申报选择") %}
     <div id="declaration-confirm" class="notice notice-neutral" {% if !form.selected("has_result", "no") %}hidden{% endif %}><label class="choice"><input id="no-result-confirm" name="no_result_confirm" value="yes" type="checkbox" {% if form.selected("no_result_confirm", "yes") %}checked{% endif %}>我确认本学年暂无成果材料。</label></div>
+    {% call error("no_result_confirm", "no-result-confirm") %}
   </fieldset>
   {% endif %}
-  <div data-result-fields>
+  <fieldset class="result-fields" data-result-fields {% if !form.has_result() %}hidden disabled{% endif %}>
     <fieldset class="form-section"><legend>成果信息</legend>
       {% call text_field("result_name", "成果名称", "text", 200) %}
       <div class="field-grid">
@@ -33,6 +38,7 @@
           </select>{% call error("category", "category") %}
         </div>
       </div>
+      {% call refresh("更新成果填写项") %}
       <div class="field"><label for="detail">详细说明</label><textarea id="detail" name="detail" maxlength="4000" rows="4" {% if form.errors.contains_key("detail") %}aria-invalid="true" aria-describedby="detail-error"{% endif %}>{{ form.value("detail") }}</textarea>{% call error("detail", "detail") %}</div>
       <div class="field"><label for="remark">备注</label><textarea id="remark" name="remark" maxlength="4000" rows="3" {% if form.errors.contains_key("remark") %}aria-invalid="true" aria-describedby="remark-error"{% endif %}>{{ form.value("remark") }}</textarea>{% call error("remark", "remark") %}</div>
     </fieldset>
@@ -41,18 +47,20 @@
       <legend>{{ section.category.label() }}</legend>
       {% for field in section.fields %}
       {% let id = format!("{}-{}", section.category.as_str(), field.key) %}
-      <div class="field" data-condition-key="{{ field.when_key }}" data-condition-value="{{ field.when_value }}" {% if !form.active_field(section.category.as_str(), field) %}hidden{% endif %}>
+      <div class="field" data-condition-key="{{ field.when_key }}" data-condition-value="{{ field.when_value }}" data-preserve-value="{{ form.preserved_school_honor(field) }}" {% if !form.active_field(section.category.as_str(), field) %}hidden{% endif %}>
         <label for="{{ id }}">{{ field.label }}{% if field.required %}<span class="required">*</span>{% endif %}</label>
         {% if field.options.is_empty() %}
         <input id="{{ id }}" name="{{ field.key }}" value="{{ form.value(field.key) }}" data-required="{{ field.required }}" {% if form.active_field(section.category.as_str(), field) %}{% if field.required %}required{% endif %}{% else %}disabled{% endif %} {% if form.errors.contains_key(field.key) %}aria-invalid="true" aria-describedby="{{ id }}-error"{% endif %}>
         {% else %}
         <select id="{{ id }}" name="{{ field.key }}" data-required="{{ field.required }}" {% if form.active_field(section.category.as_str(), field) %}{% if field.required %}required{% endif %}{% else %}disabled{% endif %} {% if form.errors.contains_key(field.key) %}aria-invalid="true" aria-describedby="{{ id }}-error"{% endif %}>
-          <option value="">请选择</option>{% for (value, label) in field.options %}<option value="{{ value }}" {% if form.selected(field.key, value) %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          <option value="">{% if field.required %}请选择{% else %}可不选择{% endif %}</option>{% for (value, label) in field.options %}<option value="{{ value }}" {% if form.selected(field.key, value) %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          {% if form.legacy_option(field) %}<option value="{{ form.value(field.key) }}" selected>{{ form.value(field.key) }}（原填写内容）</option>{% endif %}
         </select>
         {% endif %}
         {% call error(field.key, id) %}
       </div>
       {% endfor %}
+      {% call refresh("更新类别填写项") %}
       {% if section.category.as_str() == "other_award" %}<p class="helper">奖学金性质成果需由管理员人工确认。</p>{% endif %}
     </fieldset>
     {% endfor %}
@@ -61,6 +69,6 @@
       <input id="attachments" name="attachments" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple {% if !form.editing %}required{% endif %} aria-describedby="attachments-help{% if form.errors.contains_key("attachments") %} attachments-error{% endif %}" {% if form.errors.contains_key("attachments") %}aria-invalid="true"{% endif %}>
       <p id="attachments-help" class="helper">支持 JPG、PNG、PDF；单个文件不超过 10 MiB，合计 1-10 个文件。{% if form.editing %}已有材料会保留，无需重复上传。{% endif %}</p>{% call error("attachments", "attachments") %}
     </div></fieldset>
-  </div>
+  </fieldset>
   <div class="form-actions"><button class="button button-primary" type="submit">{% if form.editing %}保存并重新提交{% else %}提交申报{% endif %}</button><a class="button button-secondary" href="{% if form.editing %}{{ form.action.trim_end_matches("/update") }}{% else %}/{% endif %}">{% if form.editing %}取消编辑{% else %}返回首页{% endif %}</a></div>
 </form>

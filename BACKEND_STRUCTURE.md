@@ -122,12 +122,12 @@ Required keys: `class_access_code_hash`; optional keys: `class_name`, `site_titl
 | GET | `/` | none | 200 Home HTML |
 | POST | `/access` | form `access_code`, CSRF | 303 `/submit` or 400 |
 | GET | `/submit` | student session | 200 form |
-| POST | `/submit` | multipart form + CSRF | 303 success, 422 validation |
+| POST | `/submit` | multipart form + CSRF | 303 success, 422 validation; 200 for non-persisting field refresh |
 | GET | `/success/:submission_no` | receipt session | 200 success HTML |
 | GET | `/query` | none | 200 query form |
 | POST | `/query` | form `submission_no`, `edit_code`, CSRF | 303 detail or 401 |
 | GET | `/query/:submission_no` | verified student session | 200 detail |
-| POST | `/query/:submission_no/update` | multipart + CSRF | 303 detail, 403/422 |
+| POST | `/query/:submission_no/update` | multipart + CSRF | 303 detail, 403/422; 200 for authorized field refresh |
 | GET | `/submissions/:submission_no/attachments/:id` | verified student or admin session | protected bytes |
 | GET | `/healthz` | none | 200 `ok` only |
 
@@ -206,6 +206,10 @@ SESSION_SECRET must remain stable across restarts and be securely backed up with
 Every state-changing form receives a per-session random CSRF token. The token is submitted as a hidden field and compared in constant time. GET never mutates data. SameSite cookies are defense in depth, not the sole CSRF control.
 
 ## 7. Validation and storage rules
+
+Both multipart forms accept `form_action=refresh` for the server-rendered fallback. It is excluded from category JSON. Refresh verifies CSRF and session scope; editing additionally reloads the record and verifies the current credential version and editable status after parsing. Refresh retains submitted text but never saves records, declarations, or uploaded files. Normal submissions use the shared validation and transactional safeguards below.
+
+School-honor category is optional for all awards; school-level forms offer six presets plus preserved historical custom text. Certification accepts both `CET-4/CET-6` and legacy `CET-6`, using the unchanged `cet6_score` key. Rendering normalizes the edit dropdown without rewriting JSON; export handles both certificate types with numeric score cells.
 
 Validation is shared by create and update paths. Date, category, conditional fields, attachment count/size/type, score, and text lengths are checked server-side. Uploads stream to a temporary file, validate byte count and declared/guessed MIME, then atomically move to `UPLOAD_DIR/year-<academic_year_id>/<submission_no>/` with a random filename. New uploads use immutable year identifiers so editable names (including slashes) never become paths. Legacy display-name directories remain readable through the existing protected stored-name lookup; no file migration or public path is required. Static file serving never mounts `UPLOAD_DIR`.
 

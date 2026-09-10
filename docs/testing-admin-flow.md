@@ -36,6 +36,8 @@ Coverage at 320x568, 390x844, 768x1024 and 1440x900:
 
 Administrator JavaScript is disabled in the tablet run to verify server-rendered forms remain usable. Screenshots are saved in `/tmp/zongce-admin-screenshots` (override with `ZONGCE_SCREENSHOTS`); the script also checks page overflow and JavaScript errors. Student seven-category regression instructions remain in `docs/testing-student-flow.md`.
 
+At every viewport the feedback checks also compare the administrator's disclosed edit code with the synthetic student receipt, explicitly confirm a reset after review/export, reject the old code and student scope, and query with the replacement code while retaining status and attachments. A separate declaration appears under the status filter with its real identity and “无申报材料”, without a submission number or review link.
+
 Settings is available after Task 8. Task 9 enables current-year and filtered Excel downloads; the administrator suite now checks filtered/empty/current-year XLSX content and logout revocation. See `testing-export.md`. Docker/Compose validation requires Task 10 files and an installed Docker runtime; this task does not validate deployment.
 
 

@@ -13,7 +13,7 @@
     </dl>
     <p class="helper">申报数量与总分按下方筛选统计；列表中的无材料声明及其数量仅按学年、姓名和学号筛选。</p>
   </section>
-  <section class="admin-section" aria-labelledby="filters-heading">
+  <section class="admin-section filter-panel" aria-labelledby="filters-heading">
     <h2 id="filters-heading">筛选申报</h2>
     {% if invalid_filters %}<p class="notice notice-warning" role="status">已忽略无效筛选条件，请从列表中选择学年、类别和状态，姓名与学号请使用有效关键词。</p>{% endif %}
     <form class="admin-filters" method="get" action="/admin">

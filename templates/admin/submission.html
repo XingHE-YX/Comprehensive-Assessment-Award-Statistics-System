@@ -8,7 +8,7 @@
   {% if submission.student_modified_after_review %}<p class="notice notice-neutral">学生已重新提交审核，请核对补充后的内容和材料。</p>{% endif %}
   {% if !errors.is_empty() %}<div class="notice notice-error" role="alert" tabindex="-1" autofocus><p>审核未保存，请检查以下内容：</p><ul>{% for (field, messages) in errors.fields %}{% for message in messages %}<li><a href="#review-{{ field }}">{{ message }}</a></li>{% endfor %}{% endfor %}</ul></div>{% endif %}
   <div class="admin-detail-grid">
-    <section aria-labelledby="record-heading"><h2 id="record-heading">申报内容</h2>
+    <section class="record-panel" aria-labelledby="record-heading"><h2 id="record-heading">申报内容</h2>
       <dl class="meta-list detail-list">
         <div><dt>姓名</dt><dd>{{ submission.student_name }}</dd></div><div><dt>学号</dt><dd>{{ submission.student_no }}</dd></div>
         <div><dt>成果名称</dt><dd>{{ submission.result_name }}</dd></div><div><dt>取得日期</dt><dd>{{ submission.obtained_date }}</dd></div><div><dt>成果类别</dt><dd>{{ submission.category.label() }}</dd></div>
@@ -26,7 +26,7 @@
         </li>{% endfor %}</ul>
       </section>
     </section>
-    <div>
+    <div class="review-sidebar">
     <section id="edit-code-panel" class="review-panel" aria-labelledby="edit-code-heading">
       <h2 id="edit-code-heading">学生修改码</h2>
       {% if code_reset %}<p class="notice notice-success" role="status">修改码已更新。请将当前新码交给该学生；旧码及原学生验证会话已失效。</p>{% endif %}
@@ -41,7 +41,7 @@
         <form class="stack-form" action="/admin/submissions/{{ submission.id }}/edit-code/reset" method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="edit_code_version" value="{{ submission.edit_code_version }}">
-          <label for="confirm-code-reset"><input id="confirm-code-reset" type="checkbox" name="confirm_reset" value="yes" required>我确认使旧修改码和已验证的学生会话失效，并将新码交给该学生。</label>
+          <label class="choice" for="confirm-code-reset"><input id="confirm-code-reset" type="checkbox" name="confirm_reset" value="yes" required><span>我确认使旧修改码和已验证的学生会话失效，并将新码交给该学生。</span></label>
           <p class="helper">申报内容、审核结果和附件将保留。</p>
           <button type="submit" class="button button-secondary">确认生成新修改码</button>
         </form>

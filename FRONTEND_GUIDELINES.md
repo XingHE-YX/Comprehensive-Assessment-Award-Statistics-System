@@ -81,9 +81,13 @@ There is no shadcn/ui dependency because v1 forbids a Node build chain. Implemen
 
 Each component must keep labels in the DOM, support `:focus-visible`, and render server-side usable HTML without JavaScript.
 
+Form sections are sibling white surfaces with a 24px gap and clear section legends; their outer grouping stays unframed. Native result/declaration radios use bordered selection blocks with both text and checked controls. Admin counts, filters and tables form separate groups; the record surface and the spaced code/review sidebar align at the top. These refinements use the existing tokens and do not introduce nested display cards.
+
 ## 5. Student pages
 
 Home shows the current year and deadline in the first viewport, followed by notices and the access form. Submit uses a progress-like section order without a progress bar: identity, result choice, common fields, category fields, attachments, confirmation. Do not hide required instructions in tooltips. Category sections are toggled with a select; hidden controls are disabled so irrelevant values are not submitted.
+
+Deadline text explicitly includes UTC. Without JavaScript, Update Fields buttons next to result/category choices perform an authenticated, CSRF-checked server refresh; text is preserved and a helper tells students to select files afterward. On script initialization those buttons are both hidden and disabled. The final submit remains fully validated. A refreshed editor stays open.
 
 The edit code on Success uses a monospace block with a copy button and a visible “save this code” warning. The Query page has only two fields and one primary action. Detail pages show status before long content and keep the edit action near the status.
 
