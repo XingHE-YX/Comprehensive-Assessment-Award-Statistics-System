@@ -7,6 +7,58 @@ use crate::{
     validation::{ValidatedSubmission, validate_uploads_with_existing},
 };
 
+pub async fn reset_edit_code(
+    state: &AppState,
+    vault: &crate::auth::EditCodeVault,
+    submission: &Submission,
+    expected_version: i64,
+) -> Result<(), AppError> {
+    if expected_version < 0 || expected_version != submission.edit_code_version {
+        return Err(AppError::Conflict);
+    }
+    let previous_hash = submission.edit_code_hash.clone();
+    let (code, hash) = tokio::task::spawn_blocking(move || {
+        // Even a coincidentally repeated random value must not keep the old code valid.
+        let code = loop {
+            let candidate = crate::auth::generate_edit_code();
+            if !crate::auth::verify_secret(&previous_hash, &candidate) {
+                break candidate;
+            }
+        };
+        crate::auth::hash_secret(&code).map(|hash| (code, hash))
+    })
+    .await
+    .map_err(|_| crate::auth::AuthError::Verification)?
+    .map_err(|_| crate::auth::AuthError::Verification)?;
+    let ciphertext = vault.encrypt(&submission.submission_no, &code);
+    if !SubmissionRepo::reset_edit_code(
+        &state.db,
+        submission.id,
+        expected_version,
+        &hash,
+        &ciphertext,
+    )
+    .await?
+    {
+        return Err(AppError::Conflict);
+    }
+    tracing::info!(submission_id = submission.id, event = "edit_code_reset");
+    Ok(())
+}
+
+/// Authenticate against both the envelope and the current verifier. A valid but
+/// stale envelope from an earlier credential must not present a misleading code.
+pub fn recover_edit_code(
+    vault: &crate::auth::EditCodeVault,
+    submission: &Submission,
+) -> Option<String> {
+    let code = vault.decrypt(
+        &submission.submission_no,
+        submission.edit_code_ciphertext.as_deref()?,
+    )?;
+    crate::auth::verify_secret(&submission.edit_code_hash, &code).then_some(code)
+}
+
 pub async fn update_student(
     state: &AppState,
     submission: &Submission,
@@ -16,7 +68,14 @@ pub async fn update_student(
 ) -> Result<(), AppError> {
     let mut transaction = state.db.begin().await?;
     // The conditional write takes SQLite's write lock before counting or saving attachments.
-    if !SubmissionRepo::update_student(&mut transaction, submission.id, input).await? {
+    if !SubmissionRepo::update_student(
+        &mut transaction,
+        submission.id,
+        submission.edit_code_version,
+        input,
+    )
+    .await?
+    {
         return Err(AppError::Forbidden);
     }
     let existing = AttachmentRepo::count_in_transaction(&mut transaction, submission.id).await?;

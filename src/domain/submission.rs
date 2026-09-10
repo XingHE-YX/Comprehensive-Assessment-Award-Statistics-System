@@ -72,6 +72,8 @@ pub struct Submission {
     pub review_note: Option<String>,
     pub approved_score: Option<f64>,
     pub edit_code_hash: String,
+    pub edit_code_ciphertext: Option<String>,
+    pub edit_code_version: i64,
     pub student_modified_after_review: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

@@ -33,6 +33,51 @@ pub struct SubmissionFilter {
 pub struct SubmissionRepo;
 
 impl SubmissionRepo {
+    /// Hash and recovery envelope are persisted together with the initial version.
+    pub async fn insert_in_transaction(
+        connection: &mut SqliteConnection,
+        input: &NewSubmission,
+        ciphertext: &str,
+    ) -> Result<i64, sqlx::Error> {
+        let category_data = serde_json::to_string(&input.category_data)
+            .map_err(|error| sqlx::Error::Encode(Box::new(error)))?;
+        let now = Utc::now();
+        let result = sqlx::query(
+            "INSERT INTO submissions (submission_no, academic_year_id, student_name, student_no,
+             category, result_name, obtained_date, detail, remark, category_data, edit_code_hash,
+             edit_code_ciphertext, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ).bind(&input.submission_no).bind(input.academic_year_id).bind(&input.student_name)
+            .bind(&input.student_no).bind(input.category.as_str()).bind(&input.result_name)
+            .bind(input.obtained_date).bind(&input.detail).bind(&input.remark).bind(category_data)
+            .bind(&input.edit_code_hash).bind(ciphertext).bind(now).bind(now)
+            .execute(connection).await?;
+        Ok(result.last_insert_rowid())
+    }
+
+    /// A single conditional write serializes resets and preserves all business fields.
+    pub async fn reset_edit_code(
+        pool: &SqlitePool,
+        id: i64,
+        expected_version: i64,
+        hash: &str,
+        ciphertext: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let mut transaction = pool.begin().await?;
+        let result = sqlx::query(
+            "UPDATE submissions SET edit_code_hash = ?, edit_code_ciphertext = ?,
+             edit_code_version = edit_code_version + 1
+             WHERE id = ? AND edit_code_version = ? AND edit_code_version < 9223372036854775807",
+        )
+        .bind(hash)
+        .bind(ciphertext)
+        .bind(id)
+        .bind(expected_version)
+        .execute(&mut *transaction)
+        .await?;
+        transaction.commit().await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     /// Call under the submission transaction's write lock. Academic years can
     /// share an ending year, so sequence allocation must use the public prefix.
     pub async fn next_number(
@@ -53,6 +98,7 @@ impl SubmissionRepo {
     pub async fn update_student(
         connection: &mut SqliteConnection,
         id: i64,
+        expected_version: i64,
         input: &crate::validation::ValidatedSubmission,
     ) -> Result<bool, sqlx::Error> {
         let category_data = serde_json::to_string(&input.category_data)
@@ -61,11 +107,11 @@ impl SubmissionRepo {
             "UPDATE submissions SET student_name = ?, student_no = ?, category = ?, result_name = ?,
              obtained_date = ?, detail = ?, remark = ?, category_data = ?, status = 'pending',
              student_modified_after_review = 1, updated_at = ?
-             WHERE id = ? AND status IN ('pending', 'needs_revision')",
+             WHERE id = ? AND edit_code_version = ? AND status IN ('pending', 'needs_revision')",
         )
         .bind(&input.student_name).bind(&input.student_no).bind(input.category.as_str())
         .bind(&input.result_name).bind(input.obtained_date).bind(&input.detail).bind(&input.remark)
-        .bind(category_data).bind(Utc::now()).bind(id).execute(connection).await?;
+        .bind(category_data).bind(Utc::now()).bind(id).bind(expected_version).execute(connection).await?;
         Ok(result.rows_affected() == 1)
     }
 
@@ -217,6 +263,8 @@ fn row_to_submission(row: sqlx::sqlite::SqliteRow) -> Result<Submission, sqlx::E
         review_note: row.try_get("review_note")?,
         approved_score: row.try_get("approved_score")?,
         edit_code_hash: row.try_get("edit_code_hash")?,
+        edit_code_ciphertext: row.try_get("edit_code_ciphertext")?,
+        edit_code_version: row.try_get("edit_code_version")?,
         student_modified_after_review: row.try_get::<i64, _>("student_modified_after_review")? != 0,
         created_at: row.try_get("created_at")?,
         updated_at: row.try_get("updated_at")?,

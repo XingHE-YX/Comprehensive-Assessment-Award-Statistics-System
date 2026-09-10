@@ -11,10 +11,13 @@ use tower_sessions::Session;
 
 use crate::{
     auth::{
-        establish_receipt_session, establish_student_session, generate_csrf_token,
-        receipt_edit_code, receipt_submission_no, student_year_id, verify_csrf_token,
+        establish_receipt_session, establish_student_session, generate_csrf_token, student_year_id,
+        verify_csrf_token,
     },
-    db::{AcademicYearRepo, DeclarationRepo, SettingsRepo, SubmissionRepo},
+    db::{
+        AcademicYearRepo, AttachmentRepo, DeclarationRepo, NewSubmission, SettingsRepo,
+        SubmissionRepo,
+    },
     domain::SubmissionStatus,
     error::AppError,
     state::AppState,
@@ -108,6 +111,7 @@ pub async fn submit_get(
 
 pub async fn submit_post(
     State(state): State<AppState>,
+    axum::Extension(vault): axum::Extension<std::sync::Arc<crate::auth::EditCodeVault>>,
     session: Session,
     mut multipart: Multipart,
 ) -> Result<Response, AppError> {
@@ -195,6 +199,7 @@ pub async fn submit_post(
     let edit_code_hash = crate::auth::hash_secret(&edit_code).map_err(|_| AppError::BadRequest)?;
 
     let submission_no = SubmissionRepo::next_number(&mut transaction, &year).await?;
+    let ciphertext = vault.encrypt(&submission_no, &edit_code);
     let year_directory = crate::storage::academic_year_directory(year.id);
     let stored = match state
         .storage
@@ -208,29 +213,26 @@ pub async fn submit_post(
             return Err(AppError::Storage(error));
         }
     };
-    let now = Utc::now();
-    let category_json =
-        serde_json::to_string(&validated.category_data).map_err(|_| AppError::BadRequest)?;
-    let insert = sqlx::query(
-        "INSERT INTO submissions (submission_no, academic_year_id, student_name, student_no, category, result_name, obtained_date, detail, remark, category_data, edit_code_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    let insert = SubmissionRepo::insert_in_transaction(
+        &mut transaction,
+        &NewSubmission {
+            submission_no: submission_no.clone(),
+            academic_year_id: year.id,
+            student_name: validated.student_name,
+            student_no: validated.student_no,
+            category: validated.category,
+            result_name: validated.result_name,
+            obtained_date: validated.obtained_date,
+            detail: validated.detail,
+            remark: validated.remark,
+            category_data: validated.category_data,
+            edit_code_hash,
+        },
+        &ciphertext,
     )
-    .bind(&submission_no)
-    .bind(year.id)
-    .bind(&validated.student_name)
-    .bind(&validated.student_no)
-    .bind(validated.category.as_str())
-    .bind(&validated.result_name)
-    .bind(validated.obtained_date)
-    .bind(&validated.detail)
-    .bind(&validated.remark)
-    .bind(category_json)
-    .bind(edit_code_hash)
-    .bind(now)
-    .bind(now)
-    .execute(&mut *transaction)
     .await;
     let submission_id = match insert {
-        Ok(result) => result.last_insert_rowid(),
+        Ok(id) => id,
         Err(error) => {
             for item in &stored {
                 let _ = state
@@ -242,21 +244,15 @@ pub async fn submit_post(
         }
     };
     for item in &stored {
-        if let Err(error) = sqlx::query(
-            "INSERT INTO attachments (submission_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(submission_id)
-        .bind(&item.original_name)
-        .bind(&item.stored_name)
-        .bind(&item.mime_type)
-        .bind(item.file_size)
-        .bind(now)
-        .execute(&mut *transaction)
-        .await
+        if let Err(error) =
+            AttachmentRepo::insert_stored(&mut transaction, submission_id, item).await
         {
             let _ = transaction.rollback().await;
             for saved in &stored {
-                let _ = state.storage.remove_for_submission(&year_directory, &submission_no, &saved.stored_name).await;
+                let _ = state
+                    .storage
+                    .remove_for_submission(&year_directory, &submission_no, &saved.stored_name)
+                    .await;
             }
             return Err(AppError::Database(error));
         }
@@ -284,32 +280,26 @@ pub async fn success(
         let html = views::declaration().map_err(|_| AppError::Template)?;
         return Ok(Html(html).into_response());
     }
-    let Some(receipt_no) = receipt_submission_no(&session).await? else {
+    let Some(receipt) = crate::auth::take_receipt(&session).await? else {
         return Err(AppError::NotFound);
     };
-    if receipt_no != submission_no {
+    if receipt.submission_no != submission_no {
         return Err(AppError::NotFound);
     }
     let Some(submission) = SubmissionRepo::find_by_no(&state.db, &submission_no).await? else {
         return Err(AppError::NotFound);
     };
-    let Some(edit_code) = receipt_edit_code(&session).await? else {
+    if receipt.version != submission.edit_code_version
+        || !crate::auth::verify_secret(&submission.edit_code_hash, &receipt.edit_code)
+    {
         return Err(AppError::NotFound);
-    };
-    let html = views::success(submission.submission_no, submission.result_name, edit_code)
-        .map_err(|_| AppError::Template)?;
-    session
-        .remove::<String>(crate::auth::RECEIPT_SUBMISSION_NO_KEY)
-        .await
-        .map_err(crate::auth::AuthError::Session)?;
-    session
-        .remove::<String>(crate::auth::RECEIPT_EDIT_CODE_KEY)
-        .await
-        .map_err(crate::auth::AuthError::Session)?;
-    session
-        .remove::<chrono::DateTime<Utc>>(crate::auth::RECEIPT_EXPIRES_AT_KEY)
-        .await
-        .map_err(crate::auth::AuthError::Session)?;
+    }
+    let html = views::success(
+        submission.submission_no,
+        submission.result_name,
+        receipt.edit_code,
+    )
+    .map_err(|_| AppError::Template)?;
     Ok(Html(html).into_response())
 }
 

@@ -31,6 +31,15 @@ pub struct ReviewForm {
 #[serde(default)]
 pub struct DetailQuery {
     saved: String,
+    code_reset: String,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default)]
+pub struct ResetForm {
+    csrf_token: String,
+    confirm_reset: String,
+    edit_code_version: Option<i64>,
 }
 
 struct AttachmentView {
@@ -50,6 +59,8 @@ struct DetailTemplate {
     form: ReviewForm,
     errors: ValidationErrors,
     saved: bool,
+    code_reset: bool,
+    edit_code: Option<String>,
 }
 impl DetailTemplate {
     fn statuses(&self) -> [SubmissionStatus; 4] {
@@ -70,6 +81,7 @@ async fn load(state: &AppState, id: i64) -> Result<Submission, AppError> {
 
 pub async fn detail(
     State(state): State<AppState>,
+    axum::Extension(vault): axum::Extension<std::sync::Arc<auth::EditCodeVault>>,
     session: Session,
     id: Result<Path<i64>, PathRejection>,
     query: Result<Query<DetailQuery>, QueryRejection>,
@@ -79,22 +91,24 @@ pub async fn detail(
     let submission = load(&state, id).await?;
     render(
         &state,
+        &vault,
         &session,
         submission,
         None,
         ValidationErrors::new(),
-        query.saved == "1",
+        query,
     )
     .await
 }
 
 async fn render(
     state: &AppState,
+    vault: &auth::EditCodeVault,
     session: &Session,
     submission: Submission,
     form: Option<ReviewForm>,
     errors: ValidationErrors,
-    saved: bool,
+    query: DetailQuery,
 ) -> Result<Response, AppError> {
     let year = AcademicYearRepo::find_by_id(&state.db, submission.academic_year_id)
         .await?
@@ -125,6 +139,7 @@ async fn render(
         StatusCode::UNPROCESSABLE_ENTITY
     };
     let html = DetailTemplate {
+        edit_code: crate::services::submissions::recover_edit_code(vault, &submission),
         csrf_token: auth::generate_csrf_token(session).await?,
         year,
         submission,
@@ -132,7 +147,8 @@ async fn render(
         attachments,
         form,
         errors,
-        saved,
+        saved: query.saved == "1",
+        code_reset: query.code_reset == "1",
     }
     .render()
     .map_err(|_| AppError::Template)?;
@@ -141,6 +157,7 @@ async fn render(
 
 pub async fn review(
     State(state): State<AppState>,
+    axum::Extension(vault): axum::Extension<std::sync::Arc<auth::EditCodeVault>>,
     session: Session,
     id: Result<Path<i64>, PathRejection>,
     form: Result<Form<ReviewForm>, FormRejection>,
@@ -154,7 +171,16 @@ pub async fn review(
     let validated = match validate_review(&form.status, &form.review_note, &form.approved_score) {
         Ok(value) => value,
         Err(errors) => {
-            return render(&state, &session, submission, Some(form), errors, false).await;
+            return render(
+                &state,
+                &vault,
+                &session,
+                submission,
+                Some(form),
+                errors,
+                DetailQuery::default(),
+            )
+            .await;
         }
     };
     SubmissionRepo::update_review(
@@ -171,4 +197,28 @@ pub async fn review(
         "admin review saved"
     );
     Ok(Redirect::to(&format!("/admin/submissions/{id}?saved=1")).into_response())
+}
+
+pub async fn reset_edit_code(
+    State(state): State<AppState>,
+    axum::Extension(vault): axum::Extension<std::sync::Arc<auth::EditCodeVault>>,
+    session: Session,
+    id: Result<Path<i64>, PathRejection>,
+    form: Result<Form<ResetForm>, FormRejection>,
+) -> Result<Response, AppError> {
+    let Path(id) = id.map_err(|_| AppError::BadRequest)?;
+    let Form(form) = form.map_err(AppError::from)?;
+    if !auth::verify_csrf_token(&session, &form.csrf_token).await? || form.confirm_reset != "yes" {
+        return Err(AppError::BadRequest);
+    }
+    let version = form
+        .edit_code_version
+        .filter(|version| *version >= 0)
+        .ok_or(AppError::BadRequest)?;
+    let submission = load(&state, id).await?;
+    crate::services::submissions::reset_edit_code(&state, &vault, &submission, version).await?;
+    Ok(Redirect::to(&format!(
+        "/admin/submissions/{id}?code_reset=1#edit-code-panel"
+    ))
+    .into_response())
 }

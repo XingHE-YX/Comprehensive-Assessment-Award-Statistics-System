@@ -10,7 +10,7 @@ pub enum DashboardRowKind {
 }
 
 pub enum DashboardRow {
-    Submission(Submission),
+    Submission(Box<Submission>),
     Declaration(StudentDeclaration),
 }
 
@@ -165,7 +165,7 @@ impl DashboardData {
         let mut rows: Vec<_> = submissions
             .iter()
             .cloned()
-            .map(DashboardRow::Submission)
+            .map(|submission| DashboardRow::Submission(Box::new(submission)))
             .chain(declarations.into_iter().map(DashboardRow::Declaration))
             .collect();
         rows.sort_by(|left, right| {

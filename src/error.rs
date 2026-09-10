@@ -20,6 +20,8 @@ pub enum AppError {
     NotFound,
     #[error("无权访问")]
     Forbidden,
+    #[error("记录已更新，请刷新后重试")]
+    Conflict,
     #[error("表单校验失败")]
     Validation(crate::validation::ValidationErrors),
     #[error("模板渲染失败")]
@@ -52,6 +54,7 @@ impl IntoResponse for AppError {
                 StatusCode::NOT_FOUND
             }
             Self::BadRequest => StatusCode::BAD_REQUEST,
+            Self::Conflict => StatusCode::CONFLICT,
             Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Multipart => StatusCode::BAD_REQUEST,
             Self::NotFound => StatusCode::NOT_FOUND,
@@ -104,6 +107,7 @@ pub(crate) fn safe_error_page(status: StatusCode) -> Response {
         401 => "凭据不正确，请重试",
         403 => "无权访问，请重新验证身份",
         404 => "页面不存在或资源已不可用",
+        409 => "记录已更新，请刷新页面后重试",
         413 => "请求内容过大，请减少附件数量或文件大小",
         422 => "表单校验失败，请检查填写内容",
         _ => "服务暂时不可用，请稍后重试",

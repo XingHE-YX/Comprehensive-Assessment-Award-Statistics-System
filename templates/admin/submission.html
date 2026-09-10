@@ -26,6 +26,27 @@
         </li>{% endfor %}</ul>
       </section>
     </section>
+    <div>
+    <section id="edit-code-panel" class="review-panel" aria-labelledby="edit-code-heading">
+      <h2 id="edit-code-heading">学生修改码</h2>
+      {% if code_reset %}<p class="notice notice-success" role="status">修改码已更新。请将当前新码交给该学生；旧码及原学生验证会话已失效。</p>{% endif %}
+      {% match edit_code %}{% when Some with (code) %}
+      <details {% if code_reset %}open{% endif %}><summary>查看修改码</summary><p><code id="admin-edit-code">{{ code }}</code></p></details>
+      <p class="helper">仅向本条申报的学生提供，用于查询、修改和查看附件。</p>
+      {% when None %}
+      {% if submission.edit_code_ciphertext.is_none() %}<p class="notice notice-warning">此记录的原修改码无法恢复。学生保存的原码仍可使用；如已遗失，可手动生成新码。</p>
+      {% else %}<p class="notice notice-warning">此记录的修改码暂时无法读取。学生保存的有效修改码仍可使用；如有需要，可手动生成新码。</p>{% endif %}
+      {% endmatch %}
+      <details><summary>生成新修改码</summary>
+        <form class="stack-form" action="/admin/submissions/{{ submission.id }}/edit-code/reset" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="edit_code_version" value="{{ submission.edit_code_version }}">
+          <label for="confirm-code-reset"><input id="confirm-code-reset" type="checkbox" name="confirm_reset" value="yes" required>我确认使旧修改码和已验证的学生会话失效，并将新码交给该学生。</label>
+          <p class="helper">申报内容、审核结果和附件将保留。</p>
+          <button type="submit" class="button button-secondary">确认生成新修改码</button>
+        </form>
+      </details>
+    </section>
     <section id="review-panel" class="review-panel" aria-labelledby="review-heading"><h2 id="review-heading">审核意见</h2>
       <form class="stack-form submission-form" action="/admin/submissions/{{ submission.id }}/review" method="post" data-admin-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -43,6 +64,7 @@
         <div class="form-actions"><button type="submit" class="button button-primary">保存审核</button><a href="/admin" class="button button-secondary">返回列表</a></div>
       </form>
     </section>
+    </div>
   </div>
 </main>
 {% endblock %}

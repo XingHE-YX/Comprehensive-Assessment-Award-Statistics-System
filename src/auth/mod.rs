@@ -1,6 +1,8 @@
 mod admin;
+mod edit_codes;
 mod password;
 pub use admin::AdminCredentials;
+pub use edit_codes::EditCodeVault;
 
 use std::convert::TryFrom;
 
@@ -29,6 +31,23 @@ pub const RECEIPT_EXPIRES_AT_KEY: &str = "receipt_expires_at";
 pub const VERIFIED_SUBMISSION_ID_KEY: &str = "verified_submission_id";
 pub const VERIFIED_EXPIRES_AT_KEY: &str = "verified_expires_at";
 pub const CSRF_SESSION_KEY: &str = "csrf_token";
+const VERIFIED_SCOPE_KEY: &str = "verified_submission_scope";
+const RECEIPT_SCOPE_KEY: &str = "receipt_scope";
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct VerifiedScope {
+    submission_id: i64,
+    version: i64,
+}
+
+// Plaintext credentials must never acquire Debug output.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ReceiptScope {
+    pub submission_no: String,
+    pub edit_code: String,
+    pub version: i64,
+    expires_at: chrono::DateTime<Utc>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdminUser {
@@ -101,37 +120,62 @@ pub async fn establish_receipt_session(
     edit_code: &str,
 ) -> AuthResult<()> {
     session
-        .insert(RECEIPT_SUBMISSION_NO_KEY, submission_no.to_owned())
-        .await?;
-    session
-        .insert(RECEIPT_EDIT_CODE_KEY, edit_code.to_owned())
-        .await?;
-    session
-        .insert(RECEIPT_EXPIRES_AT_KEY, Utc::now() + Duration::minutes(15))
+        .insert(
+            RECEIPT_SCOPE_KEY,
+            ReceiptScope {
+                submission_no: submission_no.to_owned(),
+                edit_code: edit_code.to_owned(),
+                version: 0,
+                expires_at: Utc::now() + Duration::minutes(15),
+            },
+        )
         .await?;
     Ok(())
 }
 
 pub async fn receipt_edit_code(session: &Session) -> AuthResult<Option<String>> {
-    if !session_is_valid(session, RECEIPT_EXPIRES_AT_KEY).await? {
-        return Ok(None);
-    }
-    Ok(session.get(RECEIPT_EDIT_CODE_KEY).await?)
+    Ok(session
+        .get::<ReceiptScope>(RECEIPT_SCOPE_KEY)
+        .await?
+        .filter(|receipt| receipt.expires_at > Utc::now())
+        .map(|receipt| receipt.edit_code))
 }
 
 pub async fn receipt_submission_no(session: &Session) -> AuthResult<Option<String>> {
-    if !session_is_valid(session, RECEIPT_EXPIRES_AT_KEY).await? {
-        return Ok(None);
-    }
-    Ok(session.get(RECEIPT_SUBMISSION_NO_KEY).await?)
+    Ok(session
+        .get::<ReceiptScope>(RECEIPT_SCOPE_KEY)
+        .await?
+        .filter(|receipt| receipt.expires_at > Utc::now())
+        .map(|receipt| receipt.submission_no))
+}
+
+pub async fn take_receipt(session: &Session) -> AuthResult<Option<ReceiptScope>> {
+    Ok(session
+        .remove::<ReceiptScope>(RECEIPT_SCOPE_KEY)
+        .await?
+        .filter(|receipt| receipt.expires_at > Utc::now()))
 }
 
 pub async fn establish_verified_student_session(
     session: &Session,
     submission_id: i64,
 ) -> AuthResult<()> {
+    establish_verified_student_session_at_version(session, submission_id, 0).await
+}
+
+pub async fn establish_verified_student_session_at_version(
+    session: &Session,
+    submission_id: i64,
+    version: i64,
+) -> AuthResult<()> {
     session
-        .insert(VERIFIED_SUBMISSION_ID_KEY, submission_id)
+        .insert(
+            VERIFIED_SCOPE_KEY,
+            VerifiedScope {
+                submission_id,
+                version,
+            },
+        )
         .await?;
     session
         .insert(VERIFIED_EXPIRES_AT_KEY, Utc::now() + Duration::minutes(30))
@@ -140,14 +184,29 @@ pub async fn establish_verified_student_session(
 }
 
 pub async fn verify_student_session(session: &Session, submission_id: i64) -> AuthResult<()> {
+    verify_student_session_at_version(session, submission_id, 0).await
+}
+
+pub async fn verify_student_session_at_version(
+    session: &Session,
+    submission_id: i64,
+    version: i64,
+) -> AuthResult<()> {
     if !session_is_valid(session, VERIFIED_EXPIRES_AT_KEY).await? {
         return Err(AuthError::MissingSession);
     }
-    let current = session
-        .get::<i64>(VERIFIED_SUBMISSION_ID_KEY)
-        .await?
-        .ok_or(AuthError::MissingSession)?;
-    if current != submission_id {
+    // Old in-memory scopes are valid only at version zero; a reset revokes them.
+    let current = match session.get::<VerifiedScope>(VERIFIED_SCOPE_KEY).await? {
+        Some(scope) => scope,
+        None => VerifiedScope {
+            submission_id: session
+                .get::<i64>(VERIFIED_SUBMISSION_ID_KEY)
+                .await?
+                .ok_or(AuthError::MissingSession)?,
+            version: 0,
+        },
+    };
+    if current.submission_id != submission_id || current.version != version {
         return Err(AuthError::MissingSession);
     }
     Ok(())

@@ -71,6 +71,8 @@ Unique partial index: `academic_years_one_active` on `is_active` where `is_activ
 | `review_note` | TEXT | yes | max 4000 chars |
 | `approved_score` | REAL | yes | >=0, max 2 decimals |
 | `edit_code_hash` | TEXT | no | Argon2id PHC string |
+| `edit_code_ciphertext` | TEXT | yes | versioned authenticated envelope; legacy rows remain NULL |
+| `edit_code_version` | INTEGER | no | default 0, non-negative, incremented atomically on reset |
 | `student_modified_after_review` | INTEGER | no | 0/1 |
 | `created_at` | TEXT | no | UTC timestamp |
 | `updated_at` | TEXT | no | UTC timestamp |
@@ -143,6 +145,7 @@ Login is public and requires CSRF on POST. All other implemented routes below re
 | GET | `/admin` | query filters | 200 dashboard HTML |
 | GET | `/admin/submissions/:id` | internal numeric id | 200 detail HTML |
 | POST | `/admin/submissions/:id/review` | `status`, `review_note`, `approved_score`, CSRF | 303 detail or 422 |
+| POST | `/admin/submissions/:id/edit-code/reset` | `confirm_reset=yes`, expected `edit_code_version`, CSRF | 303 detail, 400 invalid confirmation, 409 stale version |
 | GET | `/admin/settings` | none | 200 settings HTML |
 | POST | `/admin/years` | year fields, CSRF | 303 settings or 422 |
 | POST | `/admin/years/:id` | year fields, CSRF | 303 settings or 422 |
@@ -188,7 +191,15 @@ The class access code is stored as `class_access_code_hash` using Argon2id. Succ
 
 ### Submission edit code
 
-An 8-10 character code is generated from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, hashed with Argon2id, and shown only on the receipt page. Query verification creates a session containing the internal submission id and expiry. Every detail/update/attachment request checks that session id against the target record.
+An 8-10 character code is generated from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`. Creation persists the Argon2id verifier and authenticated recovery ciphertext in the same transaction. `EditCodeVault` uses the already-enabled cookie 0.18.2 PrivateJar AES256-GCM implementation. The versioned cookie name binds the submission number as authenticated associated data; this is a server-only envelope, never an HTTP cookie. Its key is deterministically derived using `Key::derive_from` from the validated persistent SESSION_SECRET, independently of existing session-cookie key construction. No additional dependency is required. The vault and plaintext-bearing structures have no Debug output.
+
+Only the single-use receipt and administrator-protected, no-store detail can display the code. The admin decrypts the envelope and verifies it against the current hash, so tampering, record swaps, wrong keys and old envelopes produce an unavailable message. Ordinary student details, lists, XLSX, URLs and application logs exclude codes and recovery material. The receipt stores its number/code/version together, is consumed on access, and must match the current version and verifier before display.
+
+Query verification stores the internal submission id and credential version together, with a short expiry. Every student detail/update/attachment request checks both against the loaded record; legacy scopes default to version zero. Student persistence additionally conditions its first UPDATE on the expected version and editable status under SQLite's write lock before counting or saving files. A query session established late after a reset retains its old version and cannot bypass revocation.
+
+Migration 0003 leaves legacy hashes, reviews and attachments untouched with NULL ciphertext/version zero. There is no automatic reset or recovery of one-way hashes. Manual administrator reset requires POST, CSRF, explicit invalidation confirmation and the version from the form. One conditional write updates hash, ciphertext and incremented version atomically, preserving every business field and timestamp. Competing/stale reset forms return safe 409; old codes, verified sessions and outstanding receipts are revoked. All response errors remain generic.
+
+SESSION_SECRET must remain stable across restarts and be securely backed up with the data's recovery configuration. Rotating the key requires an explicit envelope migration using the old and new keys; changing or losing it alone makes stored envelopes unreadable, while saved student codes continue to verify against their hashes. Upgrade and page reads never silently replace those credentials.
 
 ### CSRF
 

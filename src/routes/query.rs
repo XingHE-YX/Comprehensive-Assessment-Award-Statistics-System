@@ -15,7 +15,9 @@ use super::{
     views,
 };
 use crate::{
-    auth::{self, AuthError, generate_csrf_token, verify_csrf_token, verify_student_session},
+    auth::{
+        self, AuthError, generate_csrf_token, verify_csrf_token, verify_student_session_at_version,
+    },
     db::{AcademicYearRepo, AttachmentRepo, SubmissionRepo},
     domain::Submission,
     error::AppError,
@@ -52,7 +54,12 @@ pub async fn query_post(
     let submission_no = form.submission_no.trim();
     match auth::verify_student_access(&state.db, submission_no, form.edit_code.trim()).await {
         Ok(submission) => {
-            auth::establish_verified_student_session(&session, submission.id).await?;
+            auth::establish_verified_student_session_at_version(
+                &session,
+                submission.id,
+                submission.edit_code_version,
+            )
+            .await?;
             Ok(Redirect::to(&format!("/query/{}", submission.submission_no)).into_response())
         }
         Err(AuthError::InvalidCredentials) => {
@@ -78,7 +85,7 @@ async fn verified_submission(
     let submission = SubmissionRepo::find_by_no(&state.db, submission_no)
         .await?
         .ok_or(AppError::NotFound)?;
-    verify_student_session(session, submission.id).await?;
+    verify_student_session_at_version(session, submission.id, submission.edit_code_version).await?;
     Ok(submission)
 }
 
@@ -179,7 +186,10 @@ pub async fn attachment(
         .ok_or(AppError::NotFound)?;
     match auth::require_admin(&session).await {
         Ok(_) => {}
-        Err(AuthError::MissingSession) => verify_student_session(&session, submission.id).await?,
+        Err(AuthError::MissingSession) => {
+            verify_student_session_at_version(&session, submission.id, submission.edit_code_version)
+                .await?
+        }
         Err(error) => return Err(error.into()),
     }
     let attachment = AttachmentRepo::find_by_id(&state.db, id)

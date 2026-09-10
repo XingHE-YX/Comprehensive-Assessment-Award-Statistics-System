@@ -63,7 +63,7 @@ Steps:
 
 1. Parse all text fields and multipart parts with a hard request body limit.
 2. Re-check the student session, active year, deadline, date range, common fields, category enum, conditional category fields, file count, file sizes, MIME types, and extensions.
-3. Acquire the database write lock after parsing, reload the active year and repeat the session-year, deadline and date-range checks before persistence. Hash a generated edit code and allocate a unique submission number by its ending-year prefix across all academic-year records in this transaction.
+3. Acquire the database write lock after parsing, reload the active year and repeat the session-year, deadline and date-range checks before persistence. Hash a generated edit code, allocate a unique submission number by its ending-year prefix, and save an authenticated recovery envelope bound to that number alongside the hash in the transaction.
 4. Stream each file to `UPLOAD_DIR/year-<academic_year_id>/<submission_no>/<random-name>`, then insert attachment metadata in the same transaction. Remove partial files if the transaction fails.
 5. Commit and log the submission number only.
 6. Redirect to `/success/<submission_no>` with a short-lived receipt session.
@@ -93,7 +93,7 @@ Trigger: The student follows the redirect after a successful result submission.
 
 Steps:
 
-1. Verify the short-lived receipt session matches the submission number.
+1. Consume the short-lived receipt scope as one number/code/version value. Verify its number, credential version and code against the current record; a reset invalidates an outstanding receipt.
 2. Display the submission number and the plain edit code once in a prominent, copyable block.
 3. Display the result name and current status as Pending.
 4. Provide “Submit another result” and “Query/Edit” links.
@@ -110,7 +110,7 @@ Steps:
 
 1. Render submission number and edit code fields.
 2. On POST, normalize surrounding whitespace and verify the edit code against the stored hash.
-3. Create a short-lived verified-student session containing the submission id.
+3. Create a short-lived verified-student session containing the submission id and credential version together. A reset after verification cannot turn a late session write into access to the new credential version.
 4. Redirect to `/query/<submission_no>`.
 
 Success state: The detail page shows the submission and allowed actions.
@@ -123,7 +123,7 @@ Trigger: A verified-student session opens the matching submission.
 
 Steps:
 
-1. Verify the session submission id equals the URL submission.
+1. Verify the session submission id and credential version equal the current record. Never disclose the code on this page.
 2. Render common fields, category fields, status, review note, score, timestamps, and attachment links.
 3. Render an Edit button only for Pending or Needs Revision.
 4. Render a read-only notice for Approved or Rejected.
@@ -140,7 +140,7 @@ Steps:
 
 1. Verify the student session, CSRF token, and current editable status.
 2. Re-run common fields, category, date, and upload validation against the submission's original academic year. The deadline limits new submissions only; existing Pending and Needs Revision records remain editable after the deadline or year deactivation.
-3. Replace common/category values and add new attachments in a transaction. Keep existing attachments; an update may add none, and the combined total must remain 1-10. Re-check editable status when writing and count attachments under the same database write lock.
+3. Replace common/category values and add new attachments in a transaction. Keep existing attachments; an update may add none, and the combined total must remain 1-10. Condition the initial write on both editable status and the verified credential version, then count/save attachments under that write lock. An administrator reset during multipart parsing rejects the old update before files are saved.
 4. Set status to Pending, preserve the review note, set `student_modified_after_review=true`, and update `updated_at`.
 5. Redirect to the detail page.
 
@@ -187,10 +187,18 @@ Steps:
 1. Load submission, category data, attachments, and audit marker.
 2. Render all fields and image previews where safe; PDF files use protected open/download links.
 3. Render status select, review note textarea, score input, and CSRF token.
+4. Offer an accessible native disclosure for the current edit code, decrypting the record-bound envelope and checking it against the current verifier. This protected response is no-store. Codes never enter ordinary lists, student details, exports, logs or URLs.
+5. For legacy records without ciphertext, explain that the original code cannot be recovered. For damaged, stale or wrong-key ciphertext, show a safe unavailable message. Reading or upgrading never resets a credential; a saved valid student code still works.
 
 Success state: The administrator can review the complete record.
 
 Error state: Unknown id returns 404; attachment failure shows an attachment-level error while preserving the record page.
+
+## Action: Admin Reset Edit Code (`POST /admin/submissions/:id/edit-code/reset`)
+
+The administrator checks an explicit confirmation that the previous code and verified student sessions will stop working, then submits the protected CSRF form with the displayed credential version. A conditional transaction replaces hash and authenticated ciphertext and increments the version together; stale/concurrent forms return a safe 409 and cannot overwrite a later reset. Missing confirmation, CSRF or version returns 400; unauthorized writes return 403. GET does not reset anything.
+
+After success, redirect to the protected detail page to view the current new code. Preserve all submission content, review status, note, score, timestamps and attachments. The student must verify again using the new code. Keep the persistent SESSION_SECRET with protected backups; key rotation requires migrating existing envelopes. Losing or changing that key makes old envelopes unreadable but does not change their verification hashes.
 
 ## Page: Admin Review (`POST /admin/submissions/:id/review`)
 

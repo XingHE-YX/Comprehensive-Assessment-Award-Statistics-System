@@ -20,7 +20,15 @@ use crate::{auth, state::AppState};
 pub fn build_router(state: AppState) -> Router {
     let session_layer =
         auth::session_layer(&[42_u8; 64], false).expect("static development session key is valid");
-    router(state, session_layer, None, 115_343_360)
+    router(
+        state,
+        session_layer,
+        None,
+        std::sync::Arc::new(
+            auth::EditCodeVault::new(&[42_u8; 64]).expect("static development key is valid"),
+        ),
+        115_343_360,
+    )
 }
 
 /// Configured session, administrator credentials and body limit for application startup.
@@ -35,6 +43,7 @@ pub fn build_router_with_config(
             config.admin_username.clone(),
             config.admin_password_hash.clone(),
         ))),
+        std::sync::Arc::new(auth::EditCodeVault::new(&config.session_secret)?),
         config.max_body_bytes,
     ))
 }
@@ -46,6 +55,7 @@ fn router(
         tower_sessions::service::PrivateCookie,
     >,
     credentials: Option<std::sync::Arc<auth::AdminCredentials>>,
+    vault: std::sync::Arc<auth::EditCodeVault>,
     max_body_bytes: usize,
 ) -> Router {
     let protected = Router::new()
@@ -53,6 +63,10 @@ fn router(
         .route("/admin/export.xlsx", get(admin_export::download))
         .route("/admin/logout", axum::routing::post(admin_auth::logout))
         .route("/admin/submissions/{id}", get(admin_submissions::detail))
+        .route(
+            "/admin/submissions/{id}/edit-code/reset",
+            axum::routing::post(admin_submissions::reset_edit_code),
+        )
         .route(
             "/admin/submissions/{id}/review",
             axum::routing::post(admin_submissions::review),
@@ -109,6 +123,7 @@ fn router(
         .fallback(|| async { crate::error::AppError::NotFound })
         .layer(DefaultBodyLimit::max(max_body_bytes))
         .layer(axum::Extension(credentials))
+        .layer(axum::Extension(vault))
         .layer(session_layer)
         .layer(axum::middleware::from_fn_with_state(
             max_body_bytes,
