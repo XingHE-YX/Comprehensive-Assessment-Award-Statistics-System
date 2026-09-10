@@ -37,11 +37,11 @@ Task 1 入口在 Task 10 中基于当前实现补齐；保留旧 scaffold 工作
 
 Files: `migrations/0001_initial.sql`, `migrations/0002_indexes.sql`, `src/domain/*`, `src/db/*`, `tests/db.rs`。
 
-- [ ] 测试五张表、外键、唯一编号、唯一 active 学年和声明唯一性。
-- [ ] 实现 `academic_years`、`submissions`、`attachments`、`student_declarations`、`settings` 表。
-- [ ] 实现 `AcademicYearRepo::current`、`SubmissionRepo::insert/find/list/update_review`、`SettingsRepo::get/set` 和附件查询。
-- [ ] 启动时执行 migration；没有学年时可重复 seed `2025-2026学年`。
-- [ ] 运行 `cargo test --test db`。
+- [x] 测试五张表、外键、唯一编号、唯一 active 学年和声明唯一性。
+- [x] 实现 `academic_years`、`submissions`、`attachments`、`student_declarations`、`settings` 表。
+- [x] 实现 `AcademicYearRepo::current`、`SubmissionRepo::insert/find/list/update_review`、`SettingsRepo::get/set` 和附件查询。
+- [x] 启动时执行 migration；没有学年时可重复 seed `2025-2026学年`。
+- [x] 运行 `cargo test --test db`。
 
 完成条件：内存/临时 SQLite 能完成 migration、插入、查询和事务回滚。
 
@@ -49,11 +49,11 @@ Files: `migrations/0001_initial.sql`, `migrations/0002_indexes.sql`, `src/domain
 
 Files: `src/auth/*`, `src/storage/*`, `tests/auth.rs`, `tests/storage.rs`。
 
-- [ ] 测试 secret 哈希、错误凭据、修改码字符集、CSRF token、路径穿越、10 MiB/10 文件限制。
-- [ ] 实现 `hash_secret`、`verify_secret`、`generate_edit_code`、`generate_submission_no`。
-- [ ] 实现 admin/student/receipt/verified-student session，设置安全 Cookie 属性。
-- [ ] 实现临时文件、随机存储名、数据库元数据和受保护读取。
-- [ ] 运行定向测试和 clippy。
+- [x] 测试 secret 哈希、错误凭据、修改码字符集、CSRF token、路径穿越、10 MiB/10 文件限制。
+- [x] 实现 `hash_secret`、`verify_secret`、`generate_edit_code`、`generate_submission_no`。
+- [x] 实现 admin/student/receipt/verified-student session，设置安全 Cookie 属性。
+- [x] 实现临时文件、随机存储名、数据库元数据和受保护读取。
+- [x] 运行定向测试和 clippy。
 
 完成条件：附件目录不是静态公开目录；凭证只保存哈希；越权下载测试失败。
 
@@ -62,12 +62,14 @@ Files: `src/auth/*`, `src/storage/*`, `tests/auth.rs`, `tests/storage.rs`。
 Files: `src/domain/category.rs`, `src/validation/*`, `tests/validation.rs`。
 
 - [ ] 为七类字段分别写合法样例和缺失条件字段测试。
-- [ ] 定义固定 `Category`、`SubmissionStatus`、category JSON keys 和中文 labels。
+- [x] 定义固定 `Category`、`SubmissionStatus`、category JSON keys 和中文 labels。
 - [ ] 实现姓名/学号/日期/截止时间/类别/分值/条件字段/上传验证。
-- [ ] 明确奖学金性质为“可提交但需人工确认”。
-- [ ] 运行 `cargo test --test validation`。
+- [x] 明确奖学金性质为“可提交但需人工确认”。
+- [x] 运行 `cargo test --test validation`。
 
 完成条件：前端绕过时服务端仍拒绝所有非法数据，类别不适用字段不影响校验。
+
+最终复核（2026-09-10）：七类合法仓库测试及本轮独立 HTTP 缺字段检查均已有证据，但非校级荣誉仍被强制填写校级类别（F2），相关条件规则和固定回归需修正后才能完成 Task 4 验收。Task 2–3 复选框按现有源码和新执行证据同步，不据此倒推历史红绿执行过程。
 
 ### Task 5: 学生首页、口令进入和提交
 
@@ -156,14 +158,18 @@ Task 10 交付：74 项 Rust 测试、八种备份故障检查、四尺寸真实
 
 ## 3. 最终验收矩阵
 
-| Area | Evidence |
-|---|---|
-| Student submit | valid result, no-result declaration, all validation failures |
-| Student edit | wrong code, each status, resubmission to pending |
-| Admin | login, filters, detail, attachment, review, settings |
-| Export | two sheets, expanded columns, approved-only totals |
-| Security | hashed secrets, protected files, CSRF, safe errors/logs |
-| Deployment | HTTPS redirect, persistent volumes, restart recovery, seven backups |
+2026-09-10 最终结论：**未通过，F1、F2 待修复**。受测代码 `7ad62cf`，完整复现、测试映射和边界见 [`docs/final-acceptance.md`](docs/final-acceptance.md)；本结论更新此前“P0 全部完成”的总体状态。
+
+| Area | Evidence | Result |
+|---|---|---|
+| Student submit | valid result, no-result declaration, all validation failures | 未通过：无 JS 声明阻断 F1；非校级荣誉错误必填 F2。110 例独立 HTTP 检查 109 例符合预期。 |
+| Student edit | wrong code, each status, resubmission to pending | 状态/权限/回待审核核心项通过；共用类别校验受 F2 影响。 |
+| Admin | login, filters, detail, attachment, review, settings | 通过：Rust 与四尺寸实际镜像浏览器验证。 |
+| Export | two sheets, expanded columns, approved-only totals | 通过：两表、34/10 列、七类展开、分组及仅 Approved 汇总验证。 |
+| Security | hashed secrets, protected files, CSRF, safe errors/logs | 核心项通过；有界内存缓冲与规范表述差异另记 D2。 |
+| Deployment | HTTPS redirect, persistent volumes, restart recovery, seven backups | 本地通过：固定版本、CA 验证 HTTPS/308、九备份留七套及恢复；公网域名上线时验收。 |
+
+常规 74 项 Rust 测试、格式、严格 Clippy、八种备份故障检查和常规浏览器流程均通过，不能据此忽略上述实际复现的契约缺口。修复 F1、F2 后重跑受影响项，再签署 P0 最终通过。
 
 ## 4. Post-MVP boundary
 

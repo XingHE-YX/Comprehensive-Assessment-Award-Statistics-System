@@ -81,6 +81,13 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 
 - Final Task 10 review found a production baseline mismatch: SQLx's locked libsqlite3-sys 0.30.1 bundles SQLite 3.46.0, despite the required 3.46.1 engine. Installing a distribution sqlite3 CLI does not change a statically bundled application's engine. Compile checksum-pinned official SQLite for production, preserve driver-needed flags (especially COLUMN_METADATA and UNLOCK_NOTIFY), use the driver's supported static-link controls, and gate the exact release binary on SQLx SELECT sqlite_version(). The new application gate rejected the native 3.46.0 binary when asked for 3.46.1 and accepted it only when explicitly checking 3.46.0; startup tests compare the event with an independent SQLx connection instead of assuming the native engine version.
 
+## 2026-09-10 — Final acceptance review
+
+- A passing JavaScript-enabled declaration test did not cover progressive enhancement. With JavaScript disabled, the confirmation remains hidden and required result/date/category/file controls block the form before any POST. Test the rendered control state and actual request emission for no-JS branches, not only direct HTTP submission handlers or no-JS administrator forms.
+- Other Award's legal positive fixture always supplied school_honor_category, masking a rule error. A valid national award without this school-only optional field returned 422; its UI also lacked the prescribed choices. Derive category applicability from the requirements and test removal of non-applicable fields independently from required-field rejection cases. Do not treat the existing validator's behavior as the expected contract.
+- A temporary HTTP report parser initially looked only for field-error nodes and missed the declaration's Chinese summary-only confirmation error. The 422 response was correct; support both field and summary messages before labeling a validation response defective. The corrected finite matrix recorded 109 expected results and the one genuine school-honor mismatch across 110 cases.
+- An extra trailing blank line in a generated acceptance table was caught only after staging: plain git diff --check excludes untracked files. Review generated artifacts with git diff --cached --check after staging the exact delivery paths as well.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

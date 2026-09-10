@@ -1,6 +1,8 @@
 Project: 综测成果申报系统（单班级版）
 Last updated: 2026-09-10
 
+Final acceptance: NOT PASSED (2026-09-10, reviewed application commit 7ad62cf). F1: the no-JavaScript declaration flow is blocked by required result/file controls. F2: non-school awards incorrectly require school_honor_category and the prescribed school-honor choices are absent. See docs/final-acceptance.md. This replaces the earlier overall P0 signoff; the recorded passing Task 10 checks remain valid within their scope.
+
 Current status:
 - Project specification documents have been created.
 - AGENT.md has been created as the project-level AI execution guide.
@@ -10,8 +12,8 @@ Current status:
 - Task 1 production prerequisite is complete as part of Task 10: validated configuration, configured router/storage/admin session, real listener, migration/seed, health readiness, safe HTML errors and graceful shutdown are connected. The separate historical task1-scaffold worktree is preserved.
 - Task 2 is complete: SQLite migrations, domain models, repositories, foreign-key/unique constraints, default academic-year seed, and startup database initialization are implemented.
 - Task 3 is complete: Argon2id secret helpers, random edit/submission identifiers, scoped sessions with expiry, CSRF helpers, secure private cookies, protected attachment storage, path/type/size/count validation, and cleanup on batch failure are implemented.
-- Task 4 is complete: the seven category schemas, shared submission/declaration/score/deadline validation, attachment validation integration, category JSON keys, and validation tests are implemented.
-- Task 5 is complete: student home/access/session flow, multipart submission, no-material declarations, transactional submission/attachment persistence, receipt page, seven category form sections, responsive student UI, and submission-flow integration tests are implemented.
+- Task 4 schemas and shared validation are implemented; final acceptance found the Other Award school-honor applicability/requiredness defect F2. Correct that rule and preserve its regression before final signoff.
+- Task 5 normal JavaScript-enabled home/access/submission/declaration/receipt flow is implemented and passes; final acceptance found the no-JavaScript declaration defect F1. The fallback flow remains incomplete.
 - Task 6 is complete: query credentials, single-submission verified sessions, detail/edit pages, atomic student updates, existing/new attachment limits, protected attachment responses, shared forms, and browser regression coverage are implemented.
 - Task 7 is complete: configured administrator login/logout, protected dashboard/detail/review routes, literal keyword and enum/year filters, filter-aware counts, safe attachment previews, score/status/note validation, and responsive admin pages are implemented.
 - Task 8 is complete: administrator academic-year creation/editing/atomic activation, immediate class-code replacement, shared validation, responsive settings forms and history-preserving submission/storage integration are implemented.
@@ -28,7 +30,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- P0 implementation and local deployment acceptance are complete. For an actual production launch, configure the real domain, server paths and private environment from README, then verify public certificate issuance. P1/P2 remain separate work; no production site or real student data was changed during Task 10.
+- Resolve F1 and F2, add durable regression coverage, and re-run affected student acceptance before P0 signoff. Then configure the actual production domain/server/private environment and verify public certificates. P1/P2 remain separate work.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -118,3 +120,14 @@ Task 10 delivery notes (2026-09-10):
 - Reusable deployment and verification instructions are in README.md and docs/testing-deployment.md. Actual application/test/tool errors and fixes are in lessons.md. Local HTTPS used a private test CA; no public production-domain certificate or live deployment is claimed. Earlier notes saying main is unwired or Docker absent are historical and superseded by this delivery.
 - Final whole-branch review identified the locked Rust driver's bundled SQLite 3.46.0 differing from the required production 3.46.1. Docker now checksum-verifies the official 3.46.1 source and statically links it without changing Cargo dependencies/lockfile. A mandatory release startup gate and the running container's SQLx database_ready.sqlite_version both verified 3.46.1. The new engine passed full HTTPS smoke, existing-data compatibility, safe logs and another paired backup/restore for both old and new records; scoped final review approved the fix. Native Cargo's default bundled engine and exact-version native linkage are explicitly documented in TECH_STACK/README.
 - Implementation commits: f80429a (production startup/deployment/backups), 0e1997f (review fixes), 42d4f51 (exact production SQLite linkage/version gate). Final records and GitHub delivery are handled in the concluding documentation commit on origin/main.
+
+Final acceptance matrix review (2026-09-10):
+- Reviewed all six IMPLEMENTATION_PLAN section 3 areas at 7ad62cf with independent student, admin/export and security/deployment source reviews. The requested review is complete; the final acceptance result is NOT PASSED because F1/F2 remain open. No application source was changed in this review.
+- Fresh cargo +1.88.0 fmt --check, cargo +1.88.0 test --all-targets (74), strict Clippy, both backup Python checks (including eight fault scenarios), shell syntax, Compose config --quiet and diff checks passed.
+- Existing admin/settings/export-plus-student browser suites ran sequentially against temporary actual amd64 image instances with SQLite 3.46.1, passing all four required sizes. The normal JS declaration and all seven category positive branches passed; tablet admin forms ran without JS. Screenshot inspection found no page overflow/overlapping controls.
+- Separate current-image browser reproduction confirmed no-JS declaration submits zero HTTP requests because confirmation stays hidden and result/date/category/file remain required. A valid national Other Award without school_honor_category returned 422; the visible field is a required INPUT with zero preset options. Both observations are documented as defects, not accepted behavior.
+- Independent real HTTP matrix ran 110 cases: 13 valid branch baselines, 48 individual missing category fields and identity/date/length/enum/numeric/CSRF/declaration/upload cases. 109 matched expectations; the sole mismatch was F2. The 10 MiB and ten-file acceptance boundaries and one-byte/one-file excess rejections were exercised independently. Sanitized case results are in docs/acceptance/2026-09-10-http-matrix.md.
+- JPG and JPEG were additionally uploaded through the browser; both protected downloads returned image/jpeg and exact matching bytes. Existing browser runs covered PNG and PDF. The seven-category export contained 17 edited submissions and four declarations with independently checked XML/cell values.
+- Fresh local CA-verified HTTPS smoke completed submit/query/edit/review/XLSX; live SQLx reported 3.46.1, HTTP redirected with 308, prior persisted records remained accessible, and captured logs excluded credentials/private markers. Nine real automatic backups left seven pairs; restoring the latest pair and waiting for health preserved this round's reviewed record, original attachment and export via new sessions. Only isolated synthetic data was used.
+- Non-blocking review notes: Home lacks a UTC deadline label; multipart buffers bounded files before disk persistence despite streaming wording; small CSS spacing/important-rule deviations remain. Public-domain TLS and a fresh office-suite GUI run are not claimed; earlier LibreOffice evidence is explicitly archived evidence for the unchanged export writer.
+- IMPLEMENTATION_PLAN now carries outcomes and report links. Stale Task 2/3 checkboxes were reconciled with present implementation/tests; incomplete Task 4 requirements stay open. Historical red-first execution is not inferred from current green tests. Final report: docs/final-acceptance.md; confirmed lessons appended to lessons.md.
