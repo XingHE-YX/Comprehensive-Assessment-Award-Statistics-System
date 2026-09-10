@@ -88,6 +88,21 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - A temporary HTTP report parser initially looked only for field-error nodes and missed the declaration's Chinese summary-only confirmation error. The 422 response was correct; support both field and summary messages before labeling a validation response defective. The corrected finite matrix recorded 109 expected results and the one genuine school-honor mismatch across 110 cases.
 - An extra trailing blank line in a generated acceptance table was caught only after staging: plain git diff --check excludes untracked files. Review generated artifacts with git diff --cached --check after staging the exact delivery paths as well.
 
+## 2026-09-10 — Local network preview
+
+- Colima's printed ssh-config used a colima- profile alias, while the actual Lima ssh.config file used lima-colima-. Passing the former alias with the latter file skipped its Host block and attempted DNS/port 22, producing a closed connection. Inspect the actual Host stanza or ssh -G before creating a forward; using the matching alias reached the configured loopback VM port. A dedicated forward bound to the Wi-Fi address exposes the preview locally without recreating the container or resetting sessions.
+
+## 2026-09-10 — Local feedback and acceptance fixes
+
+- A new declaration test failed to compile with E0599 because AcademicYearRepo exposes insert, not create. Check actual repository interfaces before claiming a meaningful red test; compilation from a nonexistent fixture helper is not evidence of the missing behavior. Two implementation-provider HTTP 503 responses were infrastructure failures; preserved edits and test evidence allowed another worker to continue.
+- An unchanged session GET need not emit Set-Cookie. A restart fixture incorrectly discarded the still-valid original cookie; preserve its cookie jar and distinguish session mutation from ordinary reads.
+- Adding ciphertext/version fields enlarged Submission enough for strict Clippy to flag DashboardRow as large_enum_variant. Box the submission payload while preserving row behavior. Another Clippy nonminimal_bool finding was resolved with named applicability predicates rather than suppressing the lint.
+- New certificate fixtures changed XLSX row positions, and JSON may render an Excel numeric value as 525.0 instead of 525. Assert the intended row identity and numeric type/value, not incidental fixture positions or numeric string spelling.
+- A hidden, disabled submit button can still become a form's implicit default and swallow Enter in a text input. For JavaScript-enhanced forms, change fallback refresh buttons to type=button as well as hiding/disabling them; exercise real keyboard submission in the browser.
+- Correcting school-honor applicability can erase legacy non-school text that the old validator forced users to enter. Preserve historical values through prefilling, field refresh and editing, and test this separately from the ordinary school-only field behavior.
+- Recoverable edit codes require the original SESSION_SECRET as well as the database backup. Keep nullable ciphertext for old hash-only records, explain that originals are unavailable, and require an explicit version-checked reset. Recheck the credential version after multipart parsing under the write lock so concurrent resets revoke outstanding student writes and refreshes.
+- Apply-patch context/duplicate-target rejections did not change application behavior. Inspect current context and combine ordered hunks for the same file; verify successful changes before running build gates.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

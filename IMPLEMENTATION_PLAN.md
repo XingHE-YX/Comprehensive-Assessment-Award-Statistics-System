@@ -55,21 +55,21 @@ Files: `src/auth/*`, `src/storage/*`, `tests/auth.rs`, `tests/storage.rs`。
 - [x] 实现临时文件、随机存储名、数据库元数据和受保护读取。
 - [x] 运行定向测试和 clippy。
 
-完成条件：附件目录不是静态公开目录；凭证只保存哈希；越权下载测试失败。
+完成条件：附件目录不是静态公开目录；口令/密码保存哈希，修改码按最新用户要求保存验证哈希和管理员专用认证加密密文；越权下载测试失败。
 
 ### Task 4: 七类 schema 和服务端校验
 
 Files: `src/domain/category.rs`, `src/validation/*`, `tests/validation.rs`。
 
-- [ ] 为七类字段分别写合法样例和缺失条件字段测试。
+- [x] 为七类字段分别写合法样例和缺失条件字段测试。
 - [x] 定义固定 `Category`、`SubmissionStatus`、category JSON keys 和中文 labels。
-- [ ] 实现姓名/学号/日期/截止时间/类别/分值/条件字段/上传验证。
+- [x] 实现姓名/学号/日期/截止时间/类别/分值/条件字段/上传验证。
 - [x] 明确奖学金性质为“可提交但需人工确认”。
 - [x] 运行 `cargo test --test validation`。
 
 完成条件：前端绕过时服务端仍拒绝所有非法数据，类别不适用字段不影响校验。
 
-最终复核（2026-09-10）：七类合法仓库测试及本轮独立 HTTP 缺字段检查均已有证据，但非校级荣誉仍被强制填写校级类别（F2），相关条件规则和固定回归需修正后才能完成 Task 4 验收。Task 2–3 复选框按现有源码和新执行证据同步，不据此倒推历史红绿执行过程。
+最终复核更新（2026-09-10，aa41e71）：F2 已修复，校级荣誉类别仅适用于校级且可选，六项预置及历史文本保留已验证。七类合法/条件缺字段、CET 数值及旧值兼容、非校级合法输入都有 HTTP/仓库回归证据。复选框按现有源码和执行证据同步，不据此倒推历史红绿执行过程。
 
 ### Task 5: 学生首页、口令进入和提交
 
@@ -158,18 +158,18 @@ Task 10 交付：74 项 Rust 测试、八种备份故障检查、四尺寸真实
 
 ## 3. 最终验收矩阵
 
-2026-09-10 最终结论：**未通过，F1、F2 待修复**。受测代码 `7ad62cf`，完整复现、测试映射和边界见 [`docs/final-acceptance.md`](docs/final-acceptance.md)；本结论更新此前“P0 全部完成”的总体状态。
+2026-09-10 最终结论更新：**本地 P0 验收通过，F1、F2 已关闭**。最终受测应用代码 `aa41e71`，完整复现、修复证据和边界见 [`docs/final-acceptance.md`](docs/final-acceptance.md)。`7ad62cf` 的未通过结论保留为历史记录。
 
 | Area | Evidence | Result |
 |---|---|---|
-| Student submit | valid result, no-result declaration, all validation failures | 未通过：无 JS 声明阻断 F1；非校级荣誉错误必填 F2。110 例独立 HTTP 检查 109 例符合预期。 |
-| Student edit | wrong code, each status, resubmission to pending | 状态/权限/回待审核核心项通过；共用类别校验受 F2 影响。 |
-| Admin | login, filters, detail, attachment, review, settings | 通过：Rust 与四尺寸实际镜像浏览器验证。 |
-| Export | two sheets, expanded columns, approved-only totals | 通过：两表、34/10 列、七类展开、分组及仅 Approved 汇总验证。 |
-| Security | hashed secrets, protected files, CSRF, safe errors/logs | 核心项通过；有界内存缓冲与规范表述差异另记 D2。 |
-| Deployment | HTTPS redirect, persistent volumes, restart recovery, seven backups | 本地通过：固定版本、CA 验证 HTTPS/308、九备份留七套及恢复；公网域名上线时验收。 |
+| Student submit | valid result, no-result declaration, all validation failures | 通过：七类/条件验证、CET-4/CET-6、无 JS 声明和字段刷新、Enter 提交；F1/F2 回归通过。 |
+| Student edit | wrong code, each status, resubmission to pending | 通过：状态/权限/回待审核、无 JS 编辑、历史 CET/荣誉文本保留、重置后旧会话及并发写入失效。 |
+| Admin | login, filters, detail, attachment, review, settings | 通过：原流程、无申报材料列表、受保护修改码显示及确认重置、四尺寸浏览器验证。 |
+| Export | two sheets, expanded columns, approved-only totals | 通过：两表、34/10 列、七类展开、分组及仅 Approved 汇总；22 条成果与 4 条声明，CET 分值保持数值。 |
+| Security | hashed/encrypted secrets, protected files, CSRF, safe errors/logs | 通过：修改码加密恢复/篡改隔离/版本撤销/日志边界新增回归通过；有界内存缓冲差异 D2 保留。 |
+| Deployment | HTTPS redirect, persistent volumes, restart recovery, seven backups | 本地通过：固定 SQLite 3.46.1 镜像、CA 验证 HTTPS、迁移/重启、成套备份保留及恢复；当前预览升级保留数据，公网域名上线时验收。 |
 
-常规 74 项 Rust 测试、格式、严格 Clippy、八种备份故障检查和常规浏览器流程均通过，不能据此忽略上述实际复现的契约缺口。修复 F1、F2 后重跑受影响项，再签署 P0 最终通过。
+最终 95 项 Rust 测试、格式、严格 Clippy、八种备份故障检查、Compose 配置、四尺寸实际镜像浏览器流程、HTTPS 和迁移/重启检查均通过；独立最终审查无 Important/Critical 遗留项。F1/F2 有专门回归证据，D1/D3 同步关闭。公网证书及新一轮办公软件 GUI 验证不在本次证据范围内。
 
 ## 4. Post-MVP boundary
 
