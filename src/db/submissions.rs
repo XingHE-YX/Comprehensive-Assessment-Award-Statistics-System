@@ -66,7 +66,7 @@ impl SubmissionRepo {
         let result = sqlx::query(
             "UPDATE submissions SET edit_code_hash = ?, edit_code_ciphertext = ?,
              edit_code_version = edit_code_version + 1
-             WHERE id = ? AND edit_code_version = ? AND edit_code_version < 9223372036854775807",
+             WHERE id = ? AND deleted_at IS NULL AND edit_code_version = ? AND edit_code_version < 9223372036854775807",
         )
         .bind(hash)
         .bind(ciphertext)
@@ -107,7 +107,7 @@ impl SubmissionRepo {
             "UPDATE submissions SET student_name = ?, student_no = ?, category = ?, result_name = ?,
              obtained_date = ?, detail = ?, remark = ?, category_data = ?, status = 'pending',
              student_modified_after_review = 1, updated_at = ?
-             WHERE id = ? AND edit_code_version = ? AND status IN ('pending', 'needs_revision')",
+             WHERE id = ? AND deleted_at IS NULL AND edit_code_version = ? AND status IN ('pending', 'needs_revision')",
         )
         .bind(&input.student_name).bind(&input.student_no).bind(input.category.as_str())
         .bind(&input.result_name).bind(input.obtained_date).bind(&input.detail).bind(&input.remark)
@@ -149,7 +149,7 @@ impl SubmissionRepo {
     }
 
     pub async fn find_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Submission>, sqlx::Error> {
-        sqlx::query("SELECT * FROM submissions WHERE id = ?")
+        sqlx::query("SELECT * FROM submissions WHERE id = ? AND deleted_at IS NULL")
             .bind(id)
             .fetch_optional(pool)
             .await?
@@ -161,7 +161,7 @@ impl SubmissionRepo {
         pool: &SqlitePool,
         submission_no: &str,
     ) -> Result<Option<Submission>, sqlx::Error> {
-        sqlx::query("SELECT * FROM submissions WHERE submission_no = ?")
+        sqlx::query("SELECT * FROM submissions WHERE submission_no = ? AND deleted_at IS NULL")
             .bind(submission_no)
             .fetch_optional(pool)
             .await?
@@ -173,7 +173,8 @@ impl SubmissionRepo {
         executor: impl sqlx::Executor<'e, Database = Sqlite>,
         filter: &SubmissionFilter,
     ) -> Result<Vec<Submission>, sqlx::Error> {
-        let mut query = QueryBuilder::<Sqlite>::new("SELECT * FROM submissions WHERE 1 = 1");
+        let mut query =
+            QueryBuilder::<Sqlite>::new("SELECT * FROM submissions WHERE deleted_at IS NULL");
         filter.push_predicates(&mut query);
         query.push(" ORDER BY created_at DESC, id DESC");
         let rows = query.build().fetch_all(executor).await?;
@@ -190,7 +191,7 @@ impl SubmissionRepo {
         let mut transaction = pool.begin().await?;
         let result = sqlx::query(
             "UPDATE submissions SET status = ?, review_note = ?, approved_score = ?, updated_at = ?
-             WHERE id = ?",
+             WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(status.as_str())
         .bind(review_note)

@@ -3,6 +3,8 @@ use axum_test::{
     multipart::{MultipartForm, Part},
 };
 use serde_json::{Value, json};
+#[path = "support/roster.rs"]
+mod roster;
 use zongce_web::{
     auth::{generate_edit_code, hash_secret, verify_secret},
     config::Config,
@@ -38,6 +40,14 @@ async fn fixture() -> Fixture {
             .await
             .unwrap();
     state.storage = AttachmentStorage::new(dir.path().join("uploads"));
+    roster::seed(
+        &state.db,
+        &[
+            ("设置流程测试", "SETTINGS-TEST"),
+            ("上传竞态测试", "RACE-TEST"),
+        ],
+    )
+    .await;
     let password = generate_edit_code();
     let code = generate_edit_code();
     SettingsRepo::set(
@@ -101,11 +111,29 @@ fn year_form(token: &str, name: &str) -> Value {
 }
 
 async fn create(f: &Fixture, name: &str) -> i64 {
-    let response = f
-        .server
-        .post("/admin/years")
-        .form(&year_form(&f.token, name))
-        .await;
+    f.server
+        .post("/admin/roster/prepare")
+        .multipart(
+            MultipartForm::new()
+                .add_text("csrf_token", f.token.clone())
+                .add_text(
+                    "roster_text",
+                    "姓名,学号\n设置流程测试,SETTINGS-TEST\n上传竞态测试,RACE-TEST",
+                ),
+        )
+        .await
+        .assert_status_see_other();
+    let html = f.server.get("/admin/settings").await.text();
+    let draft = html
+        .split("name=\"roster_draft_id\" value=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let mut fields = year_form(&f.token, name);
+    fields["roster_draft_id"] = json!(draft);
+    let response = f.server.post("/admin/years").form(&fields).await;
     assert_eq!(response.status_code(), 303, "{}", response.text());
     AcademicYearRepo::list(&f.state.db)
         .await
@@ -242,6 +270,23 @@ async fn create_is_inactive_and_edit_updates_home_without_restart() {
 #[tokio::test]
 async fn invalid_years_and_duplicate_names_return_inline_errors_without_writes() {
     let f = fixture().await;
+    f.server
+        .post("/admin/roster/prepare")
+        .multipart(
+            MultipartForm::new()
+                .add_text("csrf_token", f.token.clone())
+                .add_text("roster_text", "姓名,学号\n设置流程测试,SETTINGS-TEST"),
+        )
+        .await
+        .assert_status_see_other();
+    let html = f.server.get("/admin/settings").await.text();
+    let draft = html
+        .split("name=\"roster_draft_id\" value=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
     for (field, value) in [
         ("name", "".into()),
         ("name", "年".repeat(41)),
@@ -253,6 +298,7 @@ async fn invalid_years_and_duplicate_names_return_inline_errors_without_writes()
         ("announcement", "文".repeat(4001)),
     ] {
         let mut form = year_form(&f.token, "保留输入");
+        form["roster_draft_id"] = json!(draft);
         form[field] = json!(value);
         let response = f.server.post("/admin/years").form(&form).await;
         assert_eq!(
@@ -265,11 +311,9 @@ async fn invalid_years_and_duplicate_names_return_inline_errors_without_writes()
         assert!(response.text().contains("role=\"alert\""));
         assert!(!response.text().contains("sqlx"));
     }
-    let duplicate = f
-        .server
-        .post("/admin/years")
-        .form(&year_form(&f.token, "2025-2026学年"))
-        .await;
+    let mut duplicate_fields = year_form(&f.token, "2025-2026学年");
+    duplicate_fields["roster_draft_id"] = json!(draft);
+    let duplicate = f.server.post("/admin/years").form(&duplicate_fields).await;
     assert_eq!(duplicate.status_code(), 422);
     assert!(duplicate.text().contains("学年名称已存在"));
     let id = create(&f, "另一学年").await;
@@ -679,7 +723,7 @@ async fn display_names_are_independent_of_attachment_directories() {
         .multipart(
             MultipartForm::new()
                 .add_text("csrf_token", token)
-                .add_text("student_name", "设置测试")
+                .add_text("student_name", "设置流程测试")
                 .add_text("student_no", "SETTINGS-TEST")
                 .add_text("result_name", "改名后补充")
                 .add_text("obtained_date", "2026-04-02")

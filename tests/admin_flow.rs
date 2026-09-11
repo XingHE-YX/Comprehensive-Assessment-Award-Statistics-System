@@ -1,4 +1,6 @@
 use axum_test::TestServer;
+#[path = "support/roster.rs"]
+mod roster;
 use zongce_web::state::AppState;
 
 #[tokio::test]
@@ -43,6 +45,7 @@ struct Fixture {
 async fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let mut state = AppState::initialize("sqlite::memory:").await.unwrap();
+    roster::seed(&state.db, &[]).await;
     state.storage = AttachmentStorage::new(dir.path());
     let password = generate_edit_code();
     let config = Config {
@@ -540,7 +543,7 @@ async fn mixed_dashboard_preserves_declaration_identity_filters_history_and_upse
     let html = f.server.get("/admin").await.text();
     assert!(html.find("ZC2026-000001").unwrap() < html.find("最新声明").unwrap());
     assert!(html.find("最新声明").unwrap() < html.find("2026-01-01 01:00 UTC").unwrap());
-    assert_eq!(html.matches("同一学生").count(), 2);
+    assert_eq!(html.matches("同一学生<br>").count(), 2);
     assert_eq!(html.matches("MIXED-01").count(), 2);
     assert!(!html.contains("历史声明"));
     assert!(html.contains("id=\"count-total\">1<"));

@@ -1,4 +1,6 @@
 use std::process::Command;
+#[path = "support/roster.rs"]
+mod roster;
 
 use axum_test::TestServer;
 use chrono::NaiveDate;
@@ -28,6 +30,11 @@ struct Fixture {
 async fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let mut state = AppState::initialize("sqlite::memory:").await.unwrap();
+    roster::seed(
+        &state.db,
+        &[("证书测试学生", "CET-001"), ("长字段测试", "000-LONG")],
+    )
+    .await;
     state.storage = AttachmentStorage::new(dir.path());
     let password = generate_edit_code();
     let edit_code = generate_edit_code();

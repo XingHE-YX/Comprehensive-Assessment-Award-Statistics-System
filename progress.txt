@@ -1,5 +1,5 @@
 Project: 综测成果申报系统（单班级版）
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 Final acceptance: PASSED for the local P0 release (2026-09-10, application commit aa41e71). F1/F2 are fixed with durable HTTP/browser regressions. The requested UI, declaration-list, administrator edit-code and CET changes are complete. Public production-domain TLS remains an actual-deployment check; bounded upload buffering remains documented deviation D2. See docs/final-acceptance.md for current signoff and the preserved historical review.
 
@@ -30,7 +30,7 @@ Completed documents:
 - AGENT.md
 
 Next implementation step:
-- User manual testing can continue on the updated local preview. When production hosting is chosen, configure its actual domain/server/private environment and verify public certificates. P1/P2 remain separate work.
+- User manual testing can continue on the roster/recycle local preview. The active 2026-2027 local-test year is newly created with three synthetic roster entries and no submissions. The 2025-2026 inactive year and all configuration are preserved. Details: docs/testing-roster-recycle.md.
 
 Verification:
 - `cargo +1.88.0 fmt --check` passed.
@@ -150,3 +150,20 @@ Local feedback delivery and acceptance closure (2026-09-10):
 - Updated the running manual preview to zongce-web:feedback only after a paired SQLite/uploads backup. Preserved its actual environment (including SESSION_SECRET), named data/uploads volumes and credentials. Cold-migration comparisons verified every original table column and attachment manifest unchanged. Kept zongce-local-preview-before-feedback stopped for rollback reference and the complete snapshot in zongce-local-preview-backups; no test records/settings were reset or reseeded.
 - Current URLs: http://localhost:3000 and http://192.168.31.41:3000; administrator path /admin/login. Wi-Fi address changed, so the previous 10.143.190.28 forward was replaced. Both current health endpoints passed; separate physical-device access remains for user testing. Keep the preview/Colima/LAN forward running; refresh and log in again after the application restart.
 - Root's pre-existing local/LAN operational notes above were preserved. Final plan/acceptance/lessons records are included in the delivery commit; existing origin/main is the authorized GitHub destination. The unrelated task1-scaffold worktree remains untouched.
+
+Roster and deletion delivery (2026-09-10):
+- User explicitly moved roster eligibility into scope: import names plus student numbers before creating a year, provide a template, allow additions after activation, and restrict result/declaration/update identity to that year's roster. Single-class scope is unchanged. All submission statuses and declarations support confirmed single/batch soft deletion and recovery; whole-year deletion requires full-name/checkbox confirmation and permanently removes that year's children and roster with durable attachment cleanup.
+- Added migration 0004, protected admin routes/pages, bounded XLSX/CSV/TSV parsing, one-hour session drafts, atomic year/roster creation, per-year roster append, normal-query/export/authorization exclusions, and recovery. Production startup no longer seeds academic years; test fixtures/examples explicitly prepare their rosters. Existing 2025-2026 data is neither backfilled nor activated.
+- New exact dependencies calamine 0.30.1, csv 1.3.1, quick-xml 0.37.5 and zip 4.6.1 support Rust 1.88.0; no new production runtime. ZIP expansion and sparse worksheet coordinates are bounded before allocation; text student numbers preserve leading zeros.
+- Verification passed: cargo fmt --check; cargo test --all-targets (101); strict all-target/all-feature Clippy; git diff --check; Compose config --quiet; native administrator/settings/student browser regressions at all four sizes; new roster/recycle browser suite at all four sizes both natively and in the final linux/amd64 image. Tablet admin forms run without JavaScript. Screenshots were inspected. Release gate confirmed actual SQLx SQLite 3.46.1.
+- Backed up current preview DB/uploads together and cold-verified every original table column/file digest before publication. Preserved credentials, Session Secret, settings and named volumes. Removed only old test year id=2 (3 results, 1 declaration, 3 attachments) through the implemented admin API; imported three synthetic students before recreating/activating the same test-year name with empty records. Year id=1 remained byte-for-byte equal at the row level. Both localhost:3000 and 192.168.31.41:3000 are healthy. Keep the preview and LAN forwarding running.
+- Current image is zongce-web:roster-recycle. Previous container zongce-local-preview-before-roster is stopped for rollback reference; paired snapshots remain in zongce-local-preview-backups. Operation evidence lives in the private temporary roster-release directory; no credentials or personal data are recorded here. No GitHub publish was performed in this task.
+- New local-test year id=3 is active with zero results/declarations/attachments. Pre-reset paired snapshot: snapshot-20260910T140951Z-PaUqjWkK in zongce-local-preview-backups. Updated general HTTP smoke passed on a disposable final-image instance after adding roster preparation; no extra test data was added to the user's preview. Temporary test instances were stopped, while the user preview/LAN forward remain running.
+
+GitHub delivery notes (2026-09-11):
+- User requested change notes followed by commit and push to the existing origin/main. This delivery packages the 56 changed/new files for roster eligibility, record recycling and permanent academic-year deletion.
+- Cargo.toml/Cargo.lock and migration 0004 add the pinned import dependencies, per-year roster, soft-deletion fields and durable attachment-cleanup queue. The db/services/routes modules implement import, identity checks, atomic deletion/recovery and protected administrator actions; main/state/storage connect startup cleanup and attachment removal.
+- Admin templates and app.css expose roster preparation/append, confirmed single/batch deletion, recovery and whole-year deletion. Examples, shared fixtures and Rust/browser/HTTP tests prepare eligible synthetic students and cover the new workflows.
+- PRD, APP_FLOW, BACKEND_STRUCTURE, TECH_STACK, IMPLEMENTATION_PLAN, README, lessons and docs/testing-roster-recycle.md record the behavior, implementation constraints and prior acceptance evidence.
+- Fresh pre-commit verification passed: cargo fmt --check; cargo test --locked --all-targets (101 tests); cargo clippy --locked --all-targets --all-features -- -D warnings; git diff --check; DOMAIN=example.invalid docker-compose --project-name zongce config --quiet --no-env-resolution. Compose used the installed standalone command and explicit project name, validating structure without resolving private runtime environment files. Prior browser/image acceptance remains documented above.
+- Next step: continue manual testing of the existing roster/recycle preview; source publication does not require restarting it or changing its data.

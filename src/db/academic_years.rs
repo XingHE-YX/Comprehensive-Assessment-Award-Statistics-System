@@ -32,6 +32,17 @@ impl AcademicYearRepo {
         input: &NewAcademicYear,
     ) -> Result<AcademicYear, sqlx::Error> {
         let mut transaction = pool.begin().await?;
+        let id = Self::insert_in_transaction(&mut transaction, input).await?;
+        transaction.commit().await?;
+        Self::find_by_id(pool, id)
+            .await?
+            .ok_or(sqlx::Error::RowNotFound)
+    }
+
+    pub async fn insert_in_transaction(
+        connection: &mut sqlx::SqliteConnection,
+        input: &NewAcademicYear,
+    ) -> Result<i64, sqlx::Error> {
         let now = Utc::now();
         let result = sqlx::query(
             "INSERT INTO academic_years
@@ -46,12 +57,9 @@ impl AcademicYearRepo {
         .bind(&input.announcement)
         .bind(now)
         .bind(now)
-        .execute(&mut *transaction)
+        .execute(connection)
         .await?;
-        transaction.commit().await?;
-        Self::find_by_id(pool, result.last_insert_rowid())
-            .await?
-            .ok_or(sqlx::Error::RowNotFound)
+        Ok(result.last_insert_rowid())
     }
 
     /// Editing metadata never changes activation or existing submissions.

@@ -3,6 +3,8 @@ use axum_test::{
     multipart::{MultipartForm, Part},
 };
 use serde_json::json;
+#[path = "support/roster.rs"]
+mod roster;
 use zongce_web::{
     auth::{generate_edit_code, hash_secret, verify_secret},
     config::Config,
@@ -63,6 +65,11 @@ async fn fixture() -> Fixture {
             .await
             .unwrap();
     state.storage = AttachmentStorage::new(dir.path().join("uploads"));
+    roster::seed(
+        &state.db,
+        &[("修改码测试", "CODE-TEST"), ("旧会话", "RACE-CODE")],
+    )
+    .await;
     let password = generate_edit_code();
     let class_code = generate_edit_code();
     SettingsRepo::set(

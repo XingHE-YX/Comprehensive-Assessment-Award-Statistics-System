@@ -84,6 +84,9 @@ async fn run() -> Result<(), &'static str> {
         .await
         .map_err(|_| "database")?;
     state.storage = AttachmentStorage::new(&config.upload_dir);
+    zongce_web::services::recycle::cleanup(&state)
+        .await
+        .map_err(|_| "attachment_cleanup")?;
     let router = build_router_with_config(state.clone(), &config).map_err(|_| "router")?;
     let listener = tokio::net::TcpListener::bind(config.bind_addr)
         .await

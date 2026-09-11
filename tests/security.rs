@@ -17,6 +17,9 @@ use zongce_web::{
 
 async fn fixture(limit: usize, secure: bool) -> (TestServer, AppState) {
     let state = AppState::initialize("sqlite::memory:").await.unwrap();
+    zongce_web::db::seed_default_academic_year(&state.db)
+        .await
+        .unwrap();
     let config = Config {
         app_env: if secure { "production" } else { "development" }.into(),
         bind_addr: "127.0.0.1:0".parse().unwrap(),

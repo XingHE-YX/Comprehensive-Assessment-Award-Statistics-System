@@ -67,12 +67,19 @@ def main():
     password = os.environ['ADMIN_PASSWORD']
     class_code = os.environ['CLASS_ACCESS_CODE']
     student, admin, anonymous = (Client(base) for _ in range(3))
+    login = admin.request('/admin/login')[0]
+    admin.request('/admin/login', dict(csrf_token=token(login), username=username, password=password), status=303)
+    settings = admin.request('/admin/settings')[0]
+    active_rows = [row for row in re.findall(r'<tr>.*?</tr>', settings.decode(), flags=re.S) if '当前学年' in row]
+    assert len(active_rows) == 1, 'Prepare and activate an academic year before running the smoke test'
+    year_id = re.search(r'/admin/years/([0-9]+)/students', active_rows[0]).group(1)
+    identity = 'SMOKE-' + uuid.uuid4().hex[:12]
+    admin.request('/admin/years/' + year_id + '/students', dict(csrf_token=token(settings), roster_text='姓名,学号\n部署验收样例,' + identity), multipart=True, status=303)
     assert student.request('/healthz')[0] == b'ok'
     page = student.request('/')[0]
     student.request('/access', {'csrf_token': token(page), 'access_code': class_code}, status=303)
     form = student.request('/submit')[0]
     date = os.environ.get('SMOKE_OBTAINED_DATE') or re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', form.decode()).group(0)
-    identity = 'SMOKE-' + uuid.uuid4().hex[:12]
     fields = dict(csrf_token=token(form), student_name='部署验收样例', student_no=identity,
                   has_result='yes', result_name='部署验收成果', obtained_date=date,
                   category='academic_competition', competition_name='验收竞赛',
@@ -90,8 +97,6 @@ def main():
     fields.update(csrf_token=token(detail), result_name='部署验收成果已修改')
     student.request('/query/' + number + '/update', fields, multipart=True, status=303)
     assert '部署验收成果已修改' in student.request('/query/' + number)[0].decode()
-    login = admin.request('/admin/login')[0]
-    admin.request('/admin/login', dict(csrf_token=token(login), username=username, password=password), status=303)
     dashboard = admin.request('/admin?' + urllib.parse.urlencode(dict(student_no=identity)))[0].decode()
     admin_path = re.search(r'href="(/admin/submissions/[0-9]+)"', dashboard).group(1)
     review = admin.request(admin_path)[0]

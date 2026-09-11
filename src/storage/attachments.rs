@@ -214,6 +214,31 @@ impl AttachmentStorage {
     ) -> Result<impl AsyncRead + Unpin, StorageError> {
         self.open(stored_name).await
     }
+
+    pub async fn remove_by_name(&self, stored_name: &str) -> Result<(), StorageError> {
+        validate_stored_name(stored_name)?;
+        match self.open(stored_name).await {
+            Ok(file) => drop(file),
+            Err(StorageError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        }
+        let path = self
+            .paths
+            .read()
+            .await
+            .get(stored_name)
+            .cloned()
+            .ok_or(StorageError::InvalidPath)?;
+        match fs::remove_file(&path).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        self.paths.write().await.remove(stored_name);
+        Ok(())
+    }
 }
 
 pub fn validate_attachment_count(

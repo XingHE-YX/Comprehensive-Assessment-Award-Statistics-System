@@ -32,6 +32,7 @@ pub struct SettingsQuery {
 #[serde(default)]
 pub struct YearForm {
     csrf_token: String,
+    roster_draft_id: String,
     #[serde(flatten)]
     fields: AcademicYearInput,
 }
@@ -73,6 +74,14 @@ struct SettingsTemplate {
     code_errors: ValidationErrors,
     notice: String,
     saved: &'static str,
+    roster_draft: Option<super::admin_roster::RosterDraft>,
+    roster_counts: std::collections::BTreeMap<i64, i64>,
+}
+
+impl SettingsTemplate {
+    fn roster_count(&self, id: &i64) -> i64 {
+        self.roster_counts.get(id).copied().unwrap_or(0)
+    }
 }
 
 async fn render(
@@ -91,6 +100,8 @@ async fn render(
         code_errors,
         notice,
         saved,
+        roster_draft: super::admin_roster::draft(session).await?,
+        roster_counts: crate::db::RosterRepo::counts(&state.db).await?,
     }
     .render()
     .map_err(|_| AppError::Template)?;
@@ -119,6 +130,8 @@ pub async fn page(
         "year" => "学年设置已保存。可在下方激活学年，或返回申报列表。",
         "active" => "当前学年已切换。学生下次进入时将使用新学年，历史申报仍可查看。",
         "code" => "班级口令已更新。新的口令立即用于验证，请妥善保存。",
+        "roster" => "名单已校验并去重，请继续填写学年信息。名单草稿保留一小时。",
+        "deleted" => "学年及其名单、申报已删除。可以导入名单创建新的学年。",
         _ => "",
     };
     render(
@@ -173,8 +186,23 @@ async fn save(
     {
         return Err(AppError::NotFound);
     }
-    match settings::save_year(&state.db, id, &form.fields).await {
-        Ok(()) => Ok(Redirect::to("/admin/settings?saved=year").into_response()),
+    let result = if id.is_some() {
+        settings::save_year(&state.db, id, &form.fields).await
+    } else {
+        let students = super::admin_roster::draft(session)
+            .await?
+            .filter(|draft| draft.id == form.roster_draft_id)
+            .map(|draft| draft.students)
+            .unwrap_or_default();
+        settings::create_year(&state.db, &form.fields, &students).await
+    };
+    match result {
+        Ok(()) => {
+            if id.is_none() {
+                super::admin_roster::clear_draft(session).await?;
+            }
+            Ok(Redirect::to("/admin/settings?saved=year").into_response())
+        }
         Err(error) => {
             settings_error(
                 state,
@@ -190,6 +218,21 @@ async fn save(
             .await
         }
     }
+}
+
+pub(super) async fn roster_error(
+    state: &AppState,
+    session: &Session,
+    errors: ValidationErrors,
+) -> Result<Response, AppError> {
+    settings_error(
+        state,
+        session,
+        Editor::default(),
+        false,
+        SettingsError::Invalid(errors),
+    )
+    .await
 }
 
 pub async fn activate(

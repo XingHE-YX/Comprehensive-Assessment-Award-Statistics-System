@@ -66,7 +66,14 @@ pub async fn update_student(
     input: &ValidatedSubmission,
     uploads: Vec<UploadInput>,
 ) -> Result<(), AppError> {
-    let mut transaction = state.db.begin().await?;
+    let mut transaction = state.db.begin_with("BEGIN IMMEDIATE").await?;
+    crate::services::roster::validate_identity(
+        &mut transaction,
+        year.id,
+        &input.student_name,
+        &input.student_no,
+    )
+    .await?;
     // The conditional write takes SQLite's write lock before counting or saving attachments.
     if !SubmissionRepo::update_student(
         &mut transaction,

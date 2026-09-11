@@ -1,4 +1,6 @@
 use axum_test::TestServer;
+#[path = "support/roster.rs"]
+mod roster;
 use chrono::NaiveDate;
 use serde_json::json;
 use sqlx::sqlite::SqlitePoolOptions;
@@ -31,6 +33,17 @@ async fn server(active: bool) -> (TestServer, sqlx::SqlitePool, tempfile::TempDi
         )
         .await
         .expect("year");
+        roster::seed(
+            &pool,
+            &[
+                ("无材料学生", "NOJS-001"),
+                ("张三", "20250001"),
+                ("李四", "20250002"),
+                ("王五", "20250003"),
+                ("赵六", "20250004"),
+            ],
+        )
+        .await;
         SettingsRepo::set(
             &pool,
             "class_access_code_hash",

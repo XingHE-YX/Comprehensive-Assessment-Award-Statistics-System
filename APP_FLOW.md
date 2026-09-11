@@ -222,6 +222,12 @@ Error state: Invalid score or missing Approved score returns the form with a Chi
 
 ## Page: Admin Settings (`GET /admin/settings`)
 
+Updated roster prerequisite: first submit `POST /admin/roster/prepare` with the protected XLSX template, UTF-8 CSV or pasted name/number columns. A validated session draft expires after one hour and reveals the new-year editor. `POST /admin/years` requires its matching draft id and atomically saves an inactive year plus roster. Activation requires a nonempty roster. Empty databases remain empty until this workflow completes; startup never recreates deleted years.
+
+`GET /admin/years/:id/students` lists the roster and supports multipart POST append after activation. Identical entries are skipped; conflicting names for one number reject the whole batch. This never replaces existing students or extends the deadline.
+
+`GET /admin/years/:id/delete` displays the exact year and child counts, including recycled records. Its POST requires CSRF, the full current year name and an explicit permanent-deletion checkbox. Delete that year's children and roster transactionally, queue file cleanup and return to Settings. Deleting the active year closes submission; other years/settings remain and the deleted name is reusable.
+
 Trigger: The administrator opens Settings.
 
 Steps:
@@ -237,6 +243,8 @@ Error state: Invalid dates/order, duplicate year name, invalid deadline, overlon
 
 ## Page: Admin Export (`GET /admin/export.xlsx`)
 
+Deleted records are always excluded from detail rows, summary totals and attachment metadata. Previously downloaded files remain unchanged.
+
 Trigger: The administrator clicks Export Current Year in the shared navigation, or Export Filtered Results beside the dashboard table.
 
 Steps:
@@ -251,3 +259,11 @@ Success state: The workbook downloads and opens in Excel or LibreOffice.
 Compatibility state: Dates before 1900 remain readable ISO text. Text beyond Excel's 32,767-unit cell limit has an explicit truncation notice and a protected administrator-detail path for the full original. The database text remains unchanged. Non-finite stored numeric values produce the generic generation error instead of text in a numeric column.
 
 Error state: Empty results still produce headers, filters and frozen first rows in a valid workbook. Invalid filter values redirect back to the dashboard with the original filter values, where the existing visible notice explains that invalid conditions were ignored; the administrator can then export the displayed selection. Extraction errors return a safe Chinese 400. Generation failure returns a generic Chinese 500 and logs only the route/status/failure stage, without cell contents, credentials or internal paths.
+
+## Action: Record deletion and recovery
+
+Each dashboard row has a Delete action, including declarations and all review statuses. Checkboxes support batches of at most 500. `POST /admin/records/delete/confirm` displays selected identities/results without mutation. After explicit confirmation, `POST /admin/records/delete` sets deletion timestamps atomically and redirects to `/admin/recycle`. Missing or stale batches fail without partial deletion.
+
+The recycle bin filters by year. `POST /admin/records/restore` restores selected records with original status, score and attachments. A newer declaration for the same identity causes an atomic conflict. Deleted records cannot be queried, edited or downloaded by students and are excluded from statistics and exports. Identifiers remain reserved while recycled.
+
+All student result/declaration creation and update requests must match both name and number in the original academic-year roster under the write lock. The existing deadline exception for pending/revision amendments remains.

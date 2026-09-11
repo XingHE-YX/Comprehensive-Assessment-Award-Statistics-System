@@ -1,4 +1,5 @@
 //! Local browser-test harness. All data and uploads are temporary.
+mod fixtures;
 use zongce_web::{
     auth::hash_secret, config::Config, db::SettingsRepo, state::AppState,
     storage::AttachmentStorage,
@@ -9,6 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let password = std::env::var("ZONGCE_PREVIEW_PASSWORD")?;
     let uploads = tempfile::tempdir()?;
     let mut state = AppState::initialize("sqlite::memory:").await?;
+    fixtures::seed(&state.db).await?;
     state.storage = AttachmentStorage::new(uploads.path());
     SettingsRepo::set(
         &state.db,

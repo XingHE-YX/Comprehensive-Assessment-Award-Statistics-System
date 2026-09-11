@@ -21,7 +21,7 @@ impl AttachmentRepo {
         filter: &super::SubmissionFilter,
     ) -> Result<Vec<Attachment>, sqlx::Error> {
         let mut query = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
-            "SELECT * FROM attachments WHERE submission_id IN (SELECT id FROM submissions WHERE 1 = 1",
+            "SELECT * FROM attachments WHERE submission_id IN (SELECT id FROM submissions WHERE deleted_at IS NULL",
         );
         filter.push_predicates(&mut query);
         query.push(") ORDER BY submission_id, created_at, id");

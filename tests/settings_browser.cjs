@@ -42,6 +42,9 @@ const baseUrl = new Promise((resolve, reject) => {
       const postResponse = (suffix) => admin.waitForResponse(r=>r.url().endsWith(suffix) && r.request().method()==="POST");
       const createYear = async (name) => {
         await admin.goto(base+"/admin/settings#year-form");
+        await admin.locator("#roster_text").fill("姓名\t学号\n设置流程测试\tSETTINGS-" + width);
+        await admin.getByRole("button", {name:"校验名单，继续创建学年",exact:true}).click();
+        await admin.waitForURL(url=>url.searchParams.get("saved")==="roster");
         await admin.locator("#year-name").fill(name);
         await admin.locator("#year-start_date").fill("2025-08-31");
         await admin.locator("#year-end_date").fill("2026-08-28");
@@ -95,7 +98,7 @@ const baseUrl = new Promise((resolve, reject) => {
       await admin.getByRole("button",{name:"保存学年",exact:true}).click(); await saved("year");
       await student.goto(base+"/submit");
       const studentToken=await student.locator('[name="csrf_token"]').inputValue();
-      const denied=await studentContext.request.post(base+"/submit",{multipart:{csrf_token:studentToken,student_name:"测试",student_no:"SETTINGS",has_result:"no",no_result_confirm:"yes"}});
+      const denied=await studentContext.request.post(base+"/submit",{multipart:{csrf_token:studentToken,student_name:"设置流程测试",student_no:"SETTINGS-"+width,has_result:"no",no_result_confirm:"yes"}});
       assert.equal(denied.status(),422); assert((await denied.text()).includes("截止"));
       await admin.goto(base+editHref);
       assert((await admin.locator("#year-deadline").inputValue()).startsWith("2000-01-01T00:00"));

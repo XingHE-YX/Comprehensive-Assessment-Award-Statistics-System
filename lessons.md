@@ -103,6 +103,14 @@ This file stores verified, reusable engineering lessons for the project. Add onl
 - Recoverable edit codes require the original SESSION_SECRET as well as the database backup. Keep nullable ciphertext for old hash-only records, explain that originals are unavailable, and require an explicit version-checked reset. Recheck the credential version after multipart parsing under the write lock so concurrent resets revoke outstanding student writes and refreshes.
 - Apply-patch context/duplicate-target rejections did not change application behavior. Inspect current context and combine ordered hunks for the same file; verify successful changes before running build gates.
 
+## 2026-09-10 — Rosters and deletion
+
+- A required roster changes both normal submission and no-material declaration fixtures; update tests to prepare real allowed identities instead of bypassing the new check. Changing a student's name now also requires a matching roster identity. Assertions counting raw name occurrences must exclude new accessible checkbox labels.
+- Soft-deleted declarations need a partial unique index on live identities. Keep the matching WHERE clause on UPSERT conflict targets; this permits a new declaration without implicitly restoring a deleted record and makes conflicting recovery fail atomically.
+- Removing startup year seeding is necessary when deleting the last year is a supported action. Otherwise a restart can silently recreate an apparently deleted academic year.
+- Bounded XLSX archive size alone does not bound a sparse worksheet's rectangular allocation. Validate worksheet cell coordinates before Calamine constructs the range, and require text identity cells to avoid silently losing leading zeros or long-number precision.
+- The host Docker CLI lacked Buildx and fell back to the legacy builder, which failed resolving cached content. Running an isolated official Buildx 0.20.1 binary against the existing Colima socket used the valid BuildKit cache and completed the unchanged production Dockerfile and SQLite version gate.
+
 ## How to add a lesson
 
 Record the date, the observed problem or decision, and the rule that should guide future work. Do not store secrets, personal data, upload contents, or temporary guesses.

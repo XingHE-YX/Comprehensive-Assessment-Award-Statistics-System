@@ -173,4 +173,15 @@ Task 10 交付：74 项 Rust 测试、八种备份故障检查、四尺寸真实
 
 ## 4. Post-MVP boundary
 
+### 2026-09-10 用户新增范围：名单与删除
+
+- [x] 先导入姓名＋学号再创建学年，模板、CSV/粘贴、按学年名单和开放后补录。
+- [x] 成果/无材料声明/修改的服务端名单校验，移除生产启动自动 seed。
+- [x] 所有审核状态及声明单条/批量删除、回收站恢复、统计/导出/附件权限同步。
+- [x] 删除已有学年，明确确认并清理其名单、全部记录及附件，支持同名重建。
+- [x] 101 项 Rust 测试、严格 Clippy、格式、Compose 配置、原有和新增四尺寸浏览器、实际 amd64 镜像 SQLite 3.46.1 检查。
+- [x] 成套备份及冷迁移保留验证；仅重建 26–27 本地测试学年，25–26 学年与原有配置保留。
+
+本次用户明确要求将名单校验纳入当前版本，优先于旧 P2 边界。复现步骤与结果见 [名单与删除验收](docs/testing-roster-recycle.md)。
+
 After all P0 evidence is recorded, P1 may be planned as separate change sets. P2 remains outside this release and must not be added while any P0 acceptance item is failing.

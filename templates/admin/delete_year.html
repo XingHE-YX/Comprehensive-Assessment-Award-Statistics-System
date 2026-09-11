@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}删除学年{% endblock %}
+{% block main %}
+<main class="container admin-shell">
+  <div class="admin-heading"><h1>删除学年</h1>{% include "admin/navigation.html" %}</div>
+  <section class="admin-section"><h2>{{ year.name }}</h2>
+    <p class="notice notice-warning">此操作永久删除整个学年，包含回收站中的记录，无法在网站内恢复。删除后可以重新创建同名学年。</p>
+    {% if year.is_active %}<p class="notice notice-warning">这是当前开放的学年。删除后学生申报入口将关闭，需创建或激活其他学年才能继续申报。</p>{% endif %}
+    <dl class="count-strip"><div><dt>学生名单</dt><dd>{{ year.students }} 人</dd></div><div><dt>成果申报（含回收站）</dt><dd>{{ year.submissions }} 条</dd></div><div><dt>无材料声明（含回收站）</dt><dd>{{ year.declarations }} 条</dd></div><div><dt>证明附件</dt><dd>{{ year.attachments }} 个</dd></div></dl>
+    <form action="/admin/years/{{ year.id }}/delete" method="post" class="stack-form" data-admin-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label for="confirm_name">输入完整学年名称以确认：{{ year.name }}</label><input id="confirm_name" name="confirm_name" maxlength="40" required autocomplete="off"></div>
+      <label><input type="checkbox" name="confirm_delete" value="yes" required>确认永久删除此学年及其全部名单、申报和附件。</label>
+      <div class="form-actions"><button class="button button-danger" type="submit">永久删除学年</button><a class="button button-secondary" href="/admin/settings">取消</a></div>
+    </form>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin-forms.js" defer></script>{% endblock %}

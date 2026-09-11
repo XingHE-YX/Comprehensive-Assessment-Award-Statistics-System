@@ -1,3 +1,4 @@
+mod fixtures;
 use zongce_web::{
     auth::hash_secret, db::SettingsRepo, state::AppState, storage::AttachmentStorage,
 };
@@ -6,6 +7,7 @@ use zongce_web::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let uploads = tempfile::tempdir()?;
     let mut state = AppState::initialize("sqlite::memory:").await?;
+    fixtures::seed(&state.db).await?;
     state.storage = AttachmentStorage::new(uploads.path());
     SettingsRepo::set(
         &state.db,

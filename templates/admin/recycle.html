@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block title %}{% if confirm %}确认删除申报{% else %}申报回收站{% endif %}{% endblock %}
+{% block main %}
+<main class="container admin-shell">
+  <div class="admin-heading"><h1>{% if confirm %}确认删除申报{% else %}申报回收站{% endif %}</h1>{% include "admin/navigation.html" %}</div>
+  {% if saved %}<p class="notice notice-success" role="status">操作已完成，统计和后续导出已同步更新。</p>{% endif %}
+  <section class="admin-section">
+    {% if confirm %}<p class="notice notice-warning">将删除下方 {{ rows.len() }} 条记录。删除后退出申报列表、分数统计和后续导出，学生无法查询或修改，也无法访问附件。记录与附件保存在回收站，可以恢复。</p>
+    {% else %}<p class="helper">回收站记录不参与统计和导出。恢复后保留原审核状态、分值和附件；若学生已经重新提交同一条无材料声明，请先处理重复记录再恢复。每次最多操作 500 条。</p>
+    <form method="get" action="/admin/recycle" class="admin-filters"><div class="field"><label for="recycle-year">学年</label><select id="recycle-year" name="academic_year_id"><option value="">全部学年</option>{% for year in years %}<option value="{{ year.id }}" {% if self.selected(year.id) %}selected{% endif %}>{{ year.name }}</option>{% endfor %}</select></div><button type="submit" class="button button-secondary">筛选回收站</button></form>
+    {% endif %}
+    {% if rows.is_empty() %}<p class="notice notice-neutral">回收站暂无记录。</p>{% else %}
+    <form id="recycle-form" method="post" action="{% if confirm %}/admin/records/delete{% else %}/admin/records/restore{% endif %}" data-admin-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="table-scroll" tabindex="0" role="region" aria-label="待操作记录"><table class="data-table"><caption>{{ rows.len() }} 条记录</caption><thead><tr><th>选择</th><th>学年</th><th>姓名 / 学号</th><th>成果 / 声明</th>{% if !confirm %}<th>删除时间（UTC）</th>{% endif %}</tr></thead><tbody>
+      {% for row in rows %}<tr><td>{% if confirm %}<input type="hidden" name="selected:{{ row.key }}" value="yes">待删除{% else %}<label><input type="checkbox" name="selected:{{ row.key }}" value="yes" aria-label="选择{{ row.student_name }}的{{ row.label }}">选择</label>{% endif %}</td><td>{{ row.year_name }}</td><td>{{ row.student_name }}<br>{{ row.student_no }}</td><td>{{ row.label }}</td>{% if !confirm %}<td>{{ row.deleted_at.as_deref().unwrap_or("") }}</td>{% endif %}</tr>{% endfor %}
+      </tbody></table></div>
+      {% if confirm %}<label class="choice-label"><input type="checkbox" name="confirm_delete" value="yes" required>我已核对以上记录，确认移入回收站。</label>{% endif %}
+      <div class="form-actions"><button type="submit" class="button {% if confirm %}button-danger{% else %}button-primary{% endif %}">{% if confirm %}确认删除{% else %}恢复所选记录{% endif %}</button><a class="button button-secondary" href="/admin">返回申报管理</a></div>
+    </form>{% endif %}
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin-forms.js" defer></script>{% endblock %}

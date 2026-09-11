@@ -101,6 +101,8 @@ input[type="file"]::file-selector-button { margin-right: 12px; padding: 8px 12px
 .button-primary:hover { color: var(--color-surface); background: var(--color-primary-hover); }
 .button-secondary { color: var(--color-text); background: var(--color-surface); border-color: var(--color-border-strong); }
 .button-secondary:hover { color: var(--color-text); background: var(--color-surface-muted); }
+.button-danger { color: var(--color-danger); background: var(--color-surface); border-color: var(--color-danger); }
+.button-danger:hover { color: var(--color-danger); background: var(--color-danger-soft); }
 .form-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .submission-form > .form-actions { padding-top: 8px; }
 .page-footer { color: var(--color-text-muted); border-top: 1px solid var(--color-border); padding: 20px 0 32px; font-size: 14px; }

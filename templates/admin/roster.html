@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}学生名单{% endblock %}
+{% block main %}
+<main class="container admin-shell">
+  <div class="admin-heading"><div><p class="context-line">{{ year.name }}</p><h1>学生名单</h1></div>{% include "admin/navigation.html" %}</div>
+  {% if saved %}<p class="notice notice-success" role="status">名单已保存，新增学生可以立即申报；原有名单保留，申报截止时间仍然有效。</p>{% endif %}
+  {% if !errors.is_empty() %}<div class="notice notice-error" role="alert">{% for (_, messages) in errors.fields %}{% for message in messages %}<p>{{ message }}</p>{% endfor %}{% endfor %}</div>{% endif %}
+  <section class="admin-section"><h2>补充学生名单</h2><p class="helper">本学年当前有 {{ students.len() }} 名学生。补录仅追加，不会覆盖已有学生。</p>
+    <form method="post" enctype="multipart/form-data" action="/admin/years/{{ year.id }}/students" class="stack-form" data-admin-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {% include "admin/roster_import.html" %}
+      <div class="form-actions"><button class="button button-primary" type="submit">添加学生</button><a class="button button-secondary" href="/admin/settings">返回学年设置</a></div>
+    </form>
+  </section>
+  <section class="admin-section"><h2>允许申报的学生</h2>
+    {% if students.is_empty() %}<p class="notice notice-warning">名单为空，请先导入学生，再激活学年。</p>{% else %}
+    <div class="table-scroll" tabindex="0" role="region" aria-label="学生名单"><table class="data-table"><caption>{{ year.name }} · {{ students.len() }} 人</caption><thead><tr><th>姓名</th><th>学号</th></tr></thead><tbody>{% for student in students %}<tr><td>{{ student.student_name }}</td><td>{{ student.student_no }}</td></tr>{% endfor %}</tbody></table></div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin-forms.js" defer></script>{% endblock %}

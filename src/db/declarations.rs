@@ -9,8 +9,9 @@ pub struct DeclarationRepo;
 impl DeclarationRepo {
     /// Declarations have no category or review status; only identity and year apply.
     pub async fn count(pool: &SqlitePool, filter: &SubmissionFilter) -> Result<i64, sqlx::Error> {
-        let mut query =
-            QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM student_declarations WHERE 1 = 1");
+        let mut query = QueryBuilder::<Sqlite>::new(
+            "SELECT COUNT(*) FROM student_declarations WHERE deleted_at IS NULL",
+        );
         filter.push_identity_predicates(&mut query);
         query.build_query_scalar().fetch_one(pool).await
     }
@@ -19,8 +20,9 @@ impl DeclarationRepo {
         executor: impl sqlx::Executor<'e, Database = Sqlite>,
         filter: &SubmissionFilter,
     ) -> Result<Vec<StudentDeclaration>, sqlx::Error> {
-        let mut query =
-            QueryBuilder::<Sqlite>::new("SELECT * FROM student_declarations WHERE 1 = 1");
+        let mut query = QueryBuilder::<Sqlite>::new(
+            "SELECT * FROM student_declarations WHERE deleted_at IS NULL",
+        );
         filter.push_identity_predicates(&mut query);
         query.push(" ORDER BY student_no, student_name, id");
         query
@@ -61,7 +63,7 @@ impl DeclarationRepo {
             "INSERT INTO student_declarations
              (academic_year_id, student_name, student_no, has_submission_material, created_at, updated_at)
              VALUES (?, ?, ?, 0, ?, ?)
-             ON CONFLICT (academic_year_id, student_no, student_name)
+             ON CONFLICT (academic_year_id, student_no, student_name) WHERE deleted_at IS NULL
              DO UPDATE SET updated_at = excluded.updated_at",
         )
         .bind(academic_year_id)
@@ -73,7 +75,7 @@ impl DeclarationRepo {
         .await?;
         sqlx::query(
             "SELECT * FROM student_declarations
-             WHERE academic_year_id = ? AND student_name = ? AND student_no = ?",
+             WHERE academic_year_id = ? AND student_name = ? AND student_no = ? AND deleted_at IS NULL",
         )
         .bind(academic_year_id)
         .bind(student_name)

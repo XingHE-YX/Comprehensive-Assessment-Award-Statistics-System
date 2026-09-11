@@ -17,12 +17,13 @@
     {% if years.is_empty() %}<p class="notice notice-neutral">暂无学年，请先在下方新建并激活学年。学生端暂未开放申报。</p>{% else %}
     <div class="table-scroll" role="region" aria-label="学年列表，可横向滚动" tabindex="0">
       <table class="data-table settings-table"><caption>全部学年 · 截止时间均为 UTC</caption>
-        <thead><tr><th scope="col">学年名称</th><th scope="col">成果有效日期</th><th scope="col">申报截止时间</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+        <thead><tr><th scope="col">学年名称</th><th scope="col">成果有效日期</th><th scope="col">申报截止时间</th><th scope="col">状态</th><th scope="col">学生名单</th><th scope="col">操作</th></tr></thead>
         <tbody>{% for year in years %}<tr>
           <td>{{ year.name }}</td><td>{{ year.start_date }} 至 {{ year.end_date }}</td>
           <td>{% if let Some(deadline) = year.deadline %}<time datetime="{{ deadline.to_rfc3339() }}">{{ deadline.format("%Y-%m-%d %H:%M:%S UTC") }}</time>{% else %}未设置{% endif %}</td>
           <td>{% if year.is_active %}<span class="status-badge status-approved">当前学年</span>{% else %}<span class="status-badge status-pending">未激活</span>{% endif %}</td>
-          <td><div class="settings-row-actions"><a href="/admin/settings?edit={{ year.id }}#year-form" aria-label="编辑{{ year.name }}">编辑</a>
+          <td><a href="/admin/years/{{ year.id }}/students">{{ self.roster_count(year.id) }} 人 · 管理名单</a></td>
+          <td><div class="settings-row-actions"><a href="/admin/settings?edit={{ year.id }}#year-form" aria-label="编辑{{ year.name }}">编辑</a><a href="/admin/years/{{ year.id }}/delete" aria-label="删除{{ year.name }}">删除学年</a>
           {% if !year.is_active %}<form action="/admin/years/{{ year.id }}/activate" method="post" data-admin-form><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-secondary" type="submit" aria-label="激活{{ year.name }}">激活</button></form>{% endif %}</div></td>
         </tr>{% endfor %}</tbody>
       </table>
@@ -31,9 +32,24 @@
   <div class="settings-grid admin-section">
     <section class="panel settings-panel" id="year-form" aria-labelledby="year-form-heading">
       <h2 id="year-form-heading">{% if editor.id.is_some() %}编辑学年{% else %}新建学年{% endif %}</h2>
+      {% if editor.id.is_none() %}
+      <h3 id="year-roster">第一步：导入学生名单</h3>
+      <form action="/admin/roster/prepare" method="post" enctype="multipart/form-data" class="stack-form" data-admin-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% include "admin/roster_import.html" %}
+        <button class="button button-secondary" type="submit">校验名单，继续创建学年</button>
+      </form>
+      {% if let Some(draft) = roster_draft %}
+      <p class="notice notice-success">已准备 {{ draft.students.len() }} 名学生，创建后绑定到新学年。</p>
+      <details><summary>预览待导入名单</summary><ul>{% for student in draft.students %}<li>{{ student.student_name }} · {{ student.student_no }}</li>{% endfor %}</ul></details>
+      <h3>第二步：填写学年信息</h3>
+      {% endif %}
+      {% endif %}
+      {% if editor.id.is_some() || roster_draft.is_some() %}
       <p class="helper">日期范围包含首尾两天；说明显示在该学年开放时的学生首页。</p>
       <form action="{{ editor.action() }}" method="post" class="stack-form" data-admin-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if editor.id.is_none() %}{% if let Some(draft) = roster_draft %}<input type="hidden" name="roster_draft_id" value="{{ draft.id }}">{% endif %}{% endif %}
         <div class="field"><label for="year-name">学年名称<span class="required">*</span></label>
           <input id="year-name" name="name" value="{{ editor.fields.name }}" maxlength="40" required {% if editor.errors.contains_key("name") %}aria-invalid="true" aria-describedby="year-name-error"{% endif %}>
           {% if let Some(error) = editor.errors.first("name") %}<p id="year-name-error" class="field-error">{{ error }}</p>{% endif %}
@@ -60,6 +76,7 @@
         </div>
         <div class="form-actions"><button type="submit" class="button button-primary">{% if editor.id.is_some() %}保存学年{% else %}创建学年{% endif %}</button>{% if editor.id.is_some() %}<a class="button button-secondary" href="/admin/settings#year-form">取消编辑</a>{% endif %}</div>
       </form>
+      {% endif %}
     </section>
     <section class="panel settings-panel" aria-labelledby="class-code-heading">
       <h2 id="class-code-heading">班级口令</h2>

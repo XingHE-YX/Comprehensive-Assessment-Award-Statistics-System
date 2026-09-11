@@ -1,4 +1,6 @@
 use axum_test::TestServer;
+#[path = "support/roster.rs"]
+mod roster;
 use chrono::NaiveDate;
 use serde_json::json;
 use sqlx::sqlite::SqlitePoolOptions;
@@ -30,6 +32,19 @@ async fn server() -> (TestServer, sqlx::SqlitePool, tempfile::TempDir) {
     )
     .await
     .expect("year");
+    roster::seed(
+        &pool,
+        &[
+            ("张三", "20250001"),
+            ("张三（已更新）", "UPDATED-001"),
+            ("测试学生", "TEST-001"),
+            ("李四", "李四"),
+            ("刷新学生", "刷新学生"),
+            ("历史学生", "历史学生"),
+            ("另一位测试学生", "另一位测试学生"),
+        ],
+    )
+    .await;
     SettingsRepo::set(
         &pool,
         "class_access_code_hash",
@@ -89,7 +104,14 @@ async fn create_submission(server: &TestServer, student_name: &str) -> (String, 
                 .add_text("csrf_token", submit_csrf)
                 .add_text("has_result", "yes")
                 .add_text("student_name", student_name)
-                .add_text("student_no", "20250001")
+                .add_text(
+                    "student_no",
+                    match student_name {
+                        "张三" => "20250001",
+                        "测试学生" => "TEST-001",
+                        other => other,
+                    },
+                )
                 .add_text("result_name", "竞赛一等奖")
                 .add_text("obtained_date", "2026-04-01")
                 .add_text("category", "academic_competition")
@@ -445,7 +467,7 @@ async fn pending_and_needs_revision_can_be_resubmitted_with_review_note_preserve
             axum_test::multipart::MultipartForm::new()
                 .add_text("csrf_token", update_csrf)
                 .add_text("student_name", "张三（已更新）")
-                .add_text("student_no", "20250001")
+                .add_text("student_no", "UPDATED-001")
                 .add_text("result_name", "竞赛一等奖（补充材料）")
                 .add_text("obtained_date", "2026-04-02")
                 .add_text("category", "academic_competition")

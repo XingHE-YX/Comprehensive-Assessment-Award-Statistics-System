@@ -57,8 +57,36 @@ pub async fn save_year(
 }
 
 pub async fn activate_year(pool: &SqlitePool, id: i64) -> Result<(), SettingsError> {
+    if AcademicYearRepo::find_by_id(pool, id).await?.is_none() {
+        return Err(SettingsError::Internal(AppError::NotFound));
+    }
+    if crate::db::RosterRepo::list(pool, id).await?.is_empty() {
+        let mut errors = ValidationErrors::new();
+        errors.add("roster", "请先为该学年导入学生名单，再激活申报");
+        return Err(SettingsError::Invalid(errors));
+    }
     AcademicYearRepo::activate(pool, id).await?;
     tracing::info!(academic_year_id = id, "academic year activated");
+    Ok(())
+}
+
+pub async fn create_year(
+    pool: &SqlitePool,
+    input: &AcademicYearInput,
+    students: &[crate::db::RosterStudent],
+) -> Result<(), SettingsError> {
+    let year = validate_year(input).map_err(SettingsError::Invalid)?;
+    if students.is_empty() {
+        let mut errors = ValidationErrors::new();
+        errors.add("roster", "请先导入学生名单，再创建学年");
+        return Err(SettingsError::Invalid(errors));
+    }
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+    let id = AcademicYearRepo::insert_in_transaction(&mut tx, &year).await?;
+    crate::db::RosterRepo::append(&mut tx, id, students)
+        .await
+        .map_err(SettingsError::Internal)?;
+    tx.commit().await?;
     Ok(())
 }
 

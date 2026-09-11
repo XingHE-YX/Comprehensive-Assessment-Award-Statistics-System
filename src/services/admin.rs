@@ -15,6 +15,12 @@ pub enum DashboardRow {
 }
 
 impl DashboardRow {
+    pub fn record_key(&self) -> String {
+        match self {
+            Self::Submission(value) => format!("s:{}", value.id),
+            Self::Declaration(value) => format!("d:{}", value.id),
+        }
+    }
     pub const fn kind(&self) -> DashboardRowKind {
         match self {
             Self::Submission(_) => DashboardRowKind::Submission,

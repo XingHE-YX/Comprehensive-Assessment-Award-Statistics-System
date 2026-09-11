@@ -1,0 +1,5 @@
+<p class="helper">下载模板后填写姓名和学号，学号列保持文本格式以保留前导零。支持 .xlsx、UTF-8 CSV；最多 2 MiB、5000 行。重复姓名和学号自动去重，同一学号对应不同姓名时整批不保存。</p>
+<p><a href="/admin/roster/template.xlsx">下载学生名单模板（Excel）</a></p>
+<div class="field"><label for="roster_file">上传名单文件</label><input id="roster_file" name="roster_file" type="file" accept=".xlsx,.csv" aria-describedby="roster-choice-help"></div>
+<div class="field"><label for="roster_text">或粘贴名单 / 手工补录</label><textarea id="roster_text" name="roster_text" rows="5" placeholder="姓名&#9;学号&#10;测试学生&#9;000001" aria-describedby="roster-choice-help"></textarea></div>
+<p id="roster-choice-help" class="helper">上传和粘贴选择一种方式。粘贴时包含“姓名”和“学号”表头，可直接从 Excel 复制两列，也可用英文逗号分隔。</p>

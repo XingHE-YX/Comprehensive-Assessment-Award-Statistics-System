@@ -5,7 +5,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
 };
 
-use crate::db::{migrate, seed_default_academic_year};
+use crate::db::migrate;
 use crate::storage::AttachmentStorage;
 
 #[derive(Clone)]
@@ -27,7 +27,6 @@ impl AppState {
             .connect_with(options)
             .await?;
         migrate(&db).await.map_err(sqlx::Error::protocol)?;
-        seed_default_academic_year(&db).await?;
         tracing::info!(event = "migration", status = "complete");
         let sqlite_version = crate::db::engine_version(&db).await?;
         // Query the connected engine, not a compiled driver or external CLI version.

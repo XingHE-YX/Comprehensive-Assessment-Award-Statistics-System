@@ -43,6 +43,10 @@ multer = "3.1.0"
 mime = "0.3.17"
 mime_guess = "2.0.5"
 rust_xlsxwriter = "0.89.1"
+calamine = "=0.30.1"
+csv = "=1.3.1"
+quick-xml = "=0.37.5"
+zip = { version = "=4.6.1", default-features = false, features = ["deflate"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt", "json"] }
 thiserror = "2.0.12"
@@ -58,6 +62,8 @@ tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "test-uti
 `sqlx` queries use compile-time checked `query!`/`query_as!` only after migrations are available to the build; dynamic filter predicates use `QueryBuilder` with bound parameters. `rust_xlsxwriter` is the only workbook writer. No ORM, GraphQL server, Redis client, frontend framework, CSS framework, or analytics SDK is allowed.
 
 ## Frontend assets and tools
+
+Roster import adds the exact dependencies above: Calamine reads XLSX, csv handles quoted CSV/TSV, ZIP and quick-xml bound expansion and cell coordinates before workbook allocation. All support Rust 1.88.0; rust_xlsxwriter remains the only workbook writer. No new production runtime or frontend build dependency is introduced.
 
 - HTML: Askama `0.14.0` templates compiled in the Rust binary.
 - JavaScript: browser-native ES2022, no npm, bundler, transpiler, or runtime dependency.
@@ -93,7 +99,7 @@ UPLOAD_DIR=/uploads
 
 Optional: `RUST_LOG` (default `info`; only a level is accepted and dependency logs remain disabled), `COOKIE_SECURE` (default true in production; false is rejected in production), `MAX_BODY_BYTES` (positive, default 115343360 for ten 10 MiB files plus form overhead). Standard padded Base64 is required for `SESSION_SECRET`; malformed trailing content is rejected. Config values and error sources never appear in logs.
 
-The production binary reads dotenv configuration, migrates/seeds SQLite, uses the configured upload directory and serves the existing router until graceful SIGINT/SIGTERM shutdown. `--hash-secret` reads one secret line from stdin and prints an Argon2id PHC without requiring runtime configuration. `GET /healthz` returns `ok` only while the database readiness query succeeds.
+The production binary reads dotenv configuration, migrates SQLite without seeding a year, uses the configured upload directory and serves the existing router until graceful SIGINT/SIGTERM shutdown. `--hash-secret` reads one secret line from stdin and prints an Argon2id PHC without requiring runtime configuration. `GET /healthz` returns `ok` only while the database readiness query succeeds.
 
 Deployment uses `.env.production` with Compose `env_file.format: raw` so PHC `$` characters are literal (values must not be quoted). A separate `.env` contains only DOMAIN and optional ZONGCE_IMAGE interpolation values; Caddy receives no application credentials. The runtime image runs as UID/GID 10001; mandatory host mounts are `/opt/zongce/data`, `/opt/zongce/uploads`, `/opt/zongce/backups`. See README for release build, daily cold snapshots and full restore procedures.
 

@@ -105,6 +105,12 @@ Foreign key is `ON DELETE RESTRICT` for the academic year. Indexes cover year/st
 
 Unique index: `(academic_year_id, student_no, student_name)`.
 
+Migration 0004 adds nullable `deleted_at` to submissions/declarations. Declaration identity uniqueness now applies only to non-deleted rows. Normal record/authentication/export queries and conditional review/reset/student writes exclude deleted rows. Recovery clears the timestamp and preserves business data; identity conflicts return 409 and roll back the batch.
+
+`academic_year_students` stores `(academic_year_id, student_no)` as its primary key, `student_name` and `created_at`; its year FK cascades. Parsing/identity validation live in `services/roster`. The session roster draft has a random id, validated students and one-hour expiry. New-year creation requires the matching draft id and inserts the year/roster in one transaction. Startup no longer seeds a year. Settings activation rejects empty rosters.
+
+`pending_attachment_deletions(stored_name PRIMARY KEY, created_at)` persists cleanup work. Permanent year deletion queues random attachment names, deletes children, then deletes the selected year transactionally. Post-commit cleanup removes files through protected storage lookup, including legacy layouts; missing files count as cleaned. Failures stay queued for subsequent cleanup/startup.
+
 ### `settings`
 
 | Column | Type | Null | Constraints |
@@ -152,6 +158,16 @@ Login is public and requires CSRF on POST. All other implemented routes below re
 | POST | `/admin/years/:id/activate` | CSRF | 303 settings or 409 |
 | POST | `/admin/settings/class-code` | `class_access_code`, CSRF | 303 settings or 422 |
 | GET | `/admin/export.xlsx` | year and optional filters | XLSX bytes |
+| GET | `/admin/roster/template.xlsx` | admin session | two-column XLSX template |
+| POST | `/admin/roster/prepare` | multipart file or pasted roster, CSRF | 303 settings or 422 |
+| GET/POST | `/admin/years/:id/students` | read / append multipart roster, CSRF | roster HTML / 303 or 422 |
+| GET/POST | `/admin/years/:id/delete` | summary / full name, confirmation, CSRF | HTML / 303 or 400/409 |
+| POST | `/admin/records/delete/confirm` | selected keys, CSRF | confirmation HTML |
+| POST | `/admin/records/delete` | selected keys, confirmation, CSRF | 303 recycle or 400/409 |
+| GET | `/admin/recycle` | optional year filter | recycle HTML |
+| POST | `/admin/records/restore` | selected keys, CSRF | 303 recycle or 400/409 |
+
+Record keys are validated `s:<id>` or `d:<id>` values in `selected:<key>=yes` form fields; table names come only from a Rust enum. Batches require 1-500 existing records and commit atomically. Import is limited to 2 MiB/5000 rows, bounded ZIP expansion and worksheet coordinates before rectangular allocation. XLSX identities must be text to avoid numeric corruption. Student creation/amendment checks both trimmed identity values against the correct year's roster while holding the database write lock.
 
 Dashboard filters are `academic_year_id`, `name`, `student_no`, `category`, and `status`. An omitted year defaults to the active year; an explicitly empty year selects all years. Without an active year, the default includes historical years. Following APP_FLOW.md, invalid enum/year values and overlong or control-character keywords are ignored with a visible non-blocking Chinese notice (200). Other valid filters still apply. Names (maximum 50 characters) and student numbers (maximum 30 characters) use literal substring matching, with SQL LIKE metacharacters escaped and values bound. Malformed path, query, and form extraction errors return a stable Chinese 400 response.
 

@@ -30,17 +30,19 @@
     <p class="helper">导出包含申报明细和学生汇总，仅累加已通过分值。无材料声明仅按学年、姓名和学号筛选；空结果也可导出表头。</p>
     {% if data.rows.is_empty() %}<p class="notice notice-neutral">没有符合筛选条件的申报。可调整上方条件，或<a href="/admin?academic_year_id=">查看全部学年</a>。</p>
     {% else %}
+    <form id="bulk-delete" action="/admin/records/delete/confirm" method="post" data-admin-form><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="form-actions"><button class="button button-danger" type="submit">删除所选记录</button><a class="button button-secondary" href="/admin/recycle">查看回收站</a></div><p class="helper">勾选需要清理的记录，每次最多 500 条；下一步核对后移入回收站。</p></form>
     <p id="table-hint" class="helper">按提交时间从新到旧排列。窄屏可横向滚动查看所有列。</p>
     <div class="table-scroll" tabindex="0" role="region" aria-label="申报列表，可横向滚动" aria-describedby="table-hint">
       <table class="data-table"><caption>符合筛选条件的 {{ data.rows.len() }} 条记录</caption>
-        <thead><tr><th scope="col">申报编号</th><th scope="col">姓名 / 学号</th><th scope="col">成果</th><th scope="col">审核状态</th><th scope="col">核定分值</th><th scope="col">提交时间</th><th scope="col">操作</th></tr></thead>
+        <thead><tr><th scope="col">选择</th><th scope="col">申报编号</th><th scope="col">姓名 / 学号</th><th scope="col">成果</th><th scope="col">审核状态</th><th scope="col">核定分值</th><th scope="col">提交时间</th><th scope="col">操作</th></tr></thead>
         <tbody>{% for row in data.rows %}<tr>
+          <td><label><input type="checkbox" form="bulk-delete" name="selected:{{ row.record_key() }}" value="yes" aria-label="选择{{ row.student_name() }}的记录">选择</label></td>
           <td class="table-number">{% match row.submission_no() %}{% when Some with (number) %}{{ number }}{% when None %}<span class="helper">无</span>{% endmatch %}</td><td>{{ row.student_name() }}<br><span class="helper">{{ row.student_no() }}</span></td>
           <td>{% match row.result_name() %}{% when Some with (name) %}{{ name }}{% when None %}<span class="helper">未提交成果</span>{% endmatch %}{% match row.category_label() %}{% when Some with (category) %}<br><span class="helper">{{ category }}</span>{% when None %}{% endmatch %}{% if row.student_modified_after_review() %}<br><span class="helper">已重新提交审核</span>{% endif %}</td>
           <td>{% match row.status_key() %}{% when Some with (status) %}<span class="status-badge status-{{ status }}">{{ row.status_label() }}</span>{% when None %}<span class="status-badge">{{ row.status_label() }}</span>{% endmatch %}</td>
           <td>{% match row.score_label() %}{% when Some with (score) %}{{ score }}{% when None %}<span class="helper">无</span>{% endmatch %}</td>
           <td><time datetime="{{ row.created_at_rfc3339() }}">{{ row.created_at_label() }}</time></td>
-          <td>{% match row.detail_url() %}{% when Some with (url) %}<a href="{{ url }}" aria-label="查看 {{ row.submission_no().unwrap_or("") }}">查看</a>{% when None %}<span class="helper">无需审核</span>{% endmatch %}</td>
+          <td>{% match row.detail_url() %}{% when Some with (url) %}<a href="{{ url }}" aria-label="查看 {{ row.submission_no().unwrap_or("") }}">查看</a>{% when None %}<span class="helper">无需审核</span>{% endmatch %}<form action="/admin/records/delete/confirm" method="post" data-admin-form><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="selected:{{ row.record_key() }}" value="yes"><button class="button button-secondary" type="submit">删除</button></form></td>
         </tr>{% endfor %}</tbody>
       </table>
     </div>{% endif %}

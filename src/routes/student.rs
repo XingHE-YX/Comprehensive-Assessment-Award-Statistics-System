@@ -157,6 +157,21 @@ pub async fn submit_post(
         .get("has_result")
         .map(String::as_str)
         .unwrap_or("yes");
+    if let Err(error) = crate::services::roster::validate_identity(
+        &mut transaction,
+        year.id,
+        values.get("student_name").map_or("", String::as_str),
+        values.get("student_no").map_or("", String::as_str),
+    )
+    .await
+    {
+        return match error {
+            AppError::Validation(errors) => {
+                render_submit_error(&session, year, values, errors).await
+            }
+            other => Err(other),
+        };
+    }
     if has_result == "no" {
         let mut errors = match validate_declaration(
             values

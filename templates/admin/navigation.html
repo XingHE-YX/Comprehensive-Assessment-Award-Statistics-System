@@ -1,5 +1,6 @@
 <nav class="admin-navigation" aria-label="管理导航">
   <a href="/admin">申报列表</a>
+  <a href="/admin/recycle">回收站</a>
   <a href="/admin/settings" class="button button-secondary">学年设置</a>
   <a href="/admin/export.xlsx" class="button button-secondary">导出当前学年</a>
   <form action="/admin/logout" method="post" data-admin-form><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="button button-secondary">退出登录</button></form>

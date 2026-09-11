@@ -1,6 +1,8 @@
 mod admin;
 mod admin_auth;
 mod admin_export;
+mod admin_recycle;
+mod admin_roster;
 mod admin_settings;
 mod admin_submissions;
 mod fields;
@@ -60,6 +62,23 @@ fn router(
 ) -> Router {
     let protected = Router::new()
         .route("/admin", get(admin::dashboard))
+        .route("/admin/recycle", get(admin_recycle::page))
+        .route(
+            "/admin/records/delete/confirm",
+            axum::routing::post(admin_recycle::confirm),
+        )
+        .route(
+            "/admin/records/delete",
+            axum::routing::post(admin_recycle::delete),
+        )
+        .route(
+            "/admin/records/restore",
+            axum::routing::post(admin_recycle::restore),
+        )
+        .route(
+            "/admin/years/{id}/delete",
+            get(admin_recycle::year_page).post(admin_recycle::delete_year),
+        )
         .route("/admin/export.xlsx", get(admin_export::download))
         .route("/admin/logout", axum::routing::post(admin_auth::logout))
         .route("/admin/submissions/{id}", get(admin_submissions::detail))
@@ -72,6 +91,15 @@ fn router(
             axum::routing::post(admin_submissions::review),
         )
         .route("/admin/settings", get(admin_settings::page))
+        .route("/admin/roster/template.xlsx", get(admin_roster::template))
+        .route(
+            "/admin/roster/prepare",
+            axum::routing::post(admin_roster::prepare),
+        )
+        .route(
+            "/admin/years/{id}/students",
+            get(admin_roster::page).post(admin_roster::append),
+        )
         .route("/admin/years", axum::routing::post(admin_settings::create))
         .route(
             "/admin/years/{id}",

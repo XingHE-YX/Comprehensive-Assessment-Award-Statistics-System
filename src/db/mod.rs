@@ -1,8 +1,12 @@
 mod academic_years;
 mod attachments;
 mod declarations;
+mod recycle;
+mod roster;
 mod settings;
 mod submissions;
+pub use recycle::{RecordKey, RecycleRecord, RecycleRepo, YearDeletionRepo, YearDeletionSummary};
+pub use roster::{RosterRepo, RosterStudent};
 
 use sqlx::SqlitePool;
 
